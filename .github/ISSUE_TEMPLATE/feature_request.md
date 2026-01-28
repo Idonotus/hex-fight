@@ -14,4 +14,4 @@ assignees: ''
 
 ## Description of the feature
 
-## Timeline and prequisites
+## Timeline and prerequisites
