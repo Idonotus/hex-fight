@@ -1,4 +1,6 @@
-use rand::Rng;
+use std::ops::Range;
+use rand::{Rng, RngCore};
+
 use crate::colors::{Color, ColorComparison};
 
 pub trait IdDeck {
@@ -12,7 +14,7 @@ pub trait IdDeck {
 }
 
 pub trait RandomDraw: IdDeck {
-	fn draw_card_random<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Option<u64> {
+	fn draw_card_random(&mut self, rng: &mut dyn RngCore) -> Option<u64> {
 		if self.is_empty() {
 			return None;
 		}
@@ -30,7 +32,7 @@ pub struct RLEDeck {
 }
 
 impl RLEDeck {
-	fn new(length: u64) -> Self {
+	pub fn new(length: u64) -> Self {
 		return Self {
 			deck: vec![length],
 			current_size: length,
@@ -177,6 +179,8 @@ impl IdDeck for RLEDeck {
 
 }
 
+impl RandomDraw for RLEDeck {}
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum CardValue {
 	Special,
@@ -186,6 +190,11 @@ pub enum CardValue {
 pub struct SimpleCard {
 	color: Color,
 	value: CardValue,
+}
+impl SimpleCard {
+	pub fn new(color: Color, value: u8) -> Self {
+		Self { color, value: CardValue::Numeral(value) }
+	}
 }
 
 pub struct ChooseColorCard {
@@ -215,4 +224,6 @@ impl Stacks for SimpleCard {
 	}
 }
 
-pub type CardPicker = fn(u64) -> dyn Stacks;
+pub type Card = Box<dyn Stacks>;
+
+pub type CardPicker = fn(u64) -> Card;
