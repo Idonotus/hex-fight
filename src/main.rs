@@ -124,6 +124,7 @@ fn card_generator(card: u64) -> Card {
     )
 }
 
+#[derive(Debug)]
 struct TurnOrder {
     order: Vec<usize>,
     queue: Vec<()>,
@@ -144,7 +145,8 @@ impl TurnOrder {
         let a: i64 = self.tracker.try_into().unwrap();
         let b : i64 = self.direction.into();
         let c: i64 = self.order.len().try_into().unwrap();
-        self.tracker = (a + b % c).try_into().unwrap();
+        
+        self.tracker = ((a + b) % c).try_into().unwrap();
     }
 
     fn skip(&mut self) {
@@ -158,12 +160,13 @@ impl TurnOrder {
 
 fn main() {
     let mut game = Game::new(2, Box::new(rand::rng()));
+
     game.deal(7);
     game.top_card = game.draw_card();
     loop {
         println!("Player {}'s turn", game.order.get_turn() + 1);
         let t = game.top_card.as_ref().unwrap().as_ref();
-        println!("The top card is:\n{:?} {:?}", t.get_color(), t.get_value());
+        println!("The top card is:\n{:?} {:?}\n\n", t.get_color(), t.get_value());
 
         let p = game.get_player(game.order.get_turn());
         for (i, card) in p.hand.iter().enumerate() {
@@ -175,7 +178,11 @@ fn main() {
         .read_line(&mut imput)
         .expect("Failed to read line");
         
-        let index_input: usize = imput.trim().parse::<usize>().expect("Enter a number") - 1;
+        let index_input: usize = match imput.trim().parse::<usize>() {
+            Ok(n) => n - 1,
+            Err(_) => continue,
+        };
+
         if index_input == p.hand.len() {
             if !game.draw(game.order.get_turn()) {
                 break;
@@ -188,7 +195,9 @@ fn main() {
             continue;
         }
 
-        game.play_card(game.order.get_turn(), index_input);
+        if !game.play_card(game.order.get_turn(), index_input) {
+            continue;
+        }
         if game.get_player(game.order.get_turn()).hand.len() == 0 {
             break;
         }
