@@ -1,4 +1,6 @@
-#[derive(PartialEq, Clone, Copy)]
+use std::fmt::Display;
+
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub struct Color {
 	pub r: u8,
 	pub g: u8,
@@ -71,3 +73,4 @@ pub fn taxicab(a: Color, b: Color) -> u16 {
 
 	return r_delta + g_delta + b_delta;
 }
+
