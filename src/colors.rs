@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::cmp::PartialOrd;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct Color {
@@ -53,17 +53,17 @@ impl Color {
 }
 
 pub type ColorComparison = Box<dyn Fn(Color, Color) -> bool>;
-pub type ColorDifferenceFn = fn(Color, Color) -> f32;
+pub type ColorDifferenceFn<T> = fn(Color, Color) -> T;
 pub type ColorDistanceFn = fn(Color, Color) -> u16;
 
-fn exact_color_eq() -> ColorComparison {Box::new(|a:Color, b: Color| -> bool {a == b})}
+pub fn exact_color_eq() -> ColorComparison {Box::new(|a:Color, b: Color| -> bool {a == b})}
 
-pub fn build_diff_tolerance_eq(difference_func: ColorDifferenceFn, tolorance: f32) -> ColorComparison {
-	return Box::new(move |a: Color, b: Color| {difference_func(a,b) > tolorance});
+pub fn build_diff_tolerance_eq<T: PartialOrd + 'static>(difference_func: ColorDifferenceFn<T>, tolorance: T) -> ColorComparison {
+	return Box::new(move |a: Color, b: Color| {difference_func(a,b) <= tolorance});
 }
 
 pub fn build_dist_tolerance_eq(distance_func: ColorDistanceFn, tolorance: u16) -> ColorComparison {
-	return Box::new(move |a: Color, b: Color| {distance_func(a,b) > tolorance});
+	return Box::new(move |a: Color, b: Color| {distance_func(a,b) <= tolorance});
 }
 
 pub fn taxicab(a: Color, b: Color) -> u16 {

@@ -6,15 +6,14 @@ use crate::{
         CardPicker,
         RLEDeck,
         SimpleCard,
-        Stacks,
         Card,
         RandomDraw,
     },
     colors::{
         Color,
         ColorComparison,
-        taxicab,
         build_dist_tolerance_eq,
+        taxicab
     }
 };
 
@@ -54,7 +53,7 @@ impl Game {
             order: TurnOrder::new(player_count),
             top_card: None,
             rng,
-            comparason: build_dist_tolerance_eq(taxicab, 16),
+            comparason: build_dist_tolerance_eq(taxicab, 64),
         }
     }
 
@@ -145,7 +144,7 @@ impl TurnOrder {
         let a: i64 = self.tracker.try_into().unwrap();
         let b : i64 = self.direction.into();
         let c: i64 = self.order.len().try_into().unwrap();
-        
+
         self.tracker = ((a + b) % c).try_into().unwrap();
     }
 
