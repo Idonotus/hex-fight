@@ -33,7 +33,7 @@ struct Game {
     order: TurnOrder,
 
     top_card: Option<Card>,
-    comparason: ColorComparison,
+    comparison: ColorComparison,
 }
 
 impl Game {
@@ -53,7 +53,7 @@ impl Game {
             order: TurnOrder::new(player_count),
             top_card: None,
             rng,
-            comparason: build_dist_tolerance_eq(taxicab, 64),
+            comparison: build_dist_tolerance_eq(taxicab, 64),
         }
     }
 
@@ -81,21 +81,8 @@ impl Game {
         }
     }
 
-    fn play_card(&mut self, player: usize, hand_number: usize) -> bool {
-        match &self.top_card {
-            None => {
-                self.top_card = Some(self.players[player].hand.remove(hand_number));
-                return true;
-            }
-            Some(top_card) => {
-                let card = &self.players[player].hand[hand_number];
-                if !card.does_stack(top_card.as_ref(), &self.comparason) {
-                    return false;
-                }
-                self.top_card = Some(self.players[player].hand.remove(hand_number));
-                return true;
-            }
-        }
+    fn play_card(&mut self, player: usize, hand_number: usize) {
+        self.top_card = Some(self.players[player].hand.remove(hand_number));
     }
     
     fn draw_card(&mut self) -> Option<Card> {
@@ -103,6 +90,20 @@ impl Game {
             Some(identity) => Some((self.card_set)(identity)),
             None => None
         }
+    }
+
+    fn get_valid_stacks_for_player(&self, player: usize, compare: &dyn Fn(&Card, &Card) -> bool) -> Vec<usize> {
+        let cmp = self.top_card.as_ref().unwrap();
+        return Vec::from_iter(self.players[player].hand.iter().enumerate().filter_map(|(idx, card)| {
+            if compare(cmp, card) {
+                return Some(idx)
+            }
+            return None
+        }));
+    }
+    
+    fn get_current_player(&self) -> &Player {
+        self.get_player(self.order.get_turn())
     }
 }
 
@@ -160,18 +161,23 @@ impl TurnOrder {
 fn main() {
     let mut game = Game::new(2, Box::new(rand::rng()));
 
-    game.deal(7);
+    game.deal(205);
     game.top_card = game.draw_card();
     loop {
-        println!("Player {}'s turn", game.order.get_turn() + 1);
+        println!("Player {}'s turn: they have {} cards", game.order.get_turn() + 1, game.get_current_player().hand.len());
         let t = game.top_card.as_ref().unwrap().as_ref();
         println!("The top card is:\n{:?} {:?}\n\n", t.get_color(), t.get_value());
 
-        let p = game.get_player(game.order.get_turn());
-        for (i, card) in p.hand.iter().enumerate() {
+        let opt = game.get_valid_stacks_for_player(game.order.get_turn(), &|top, other| {
+            top.does_stack(other.as_ref(), &game.comparison)
+        });
+
+        let p = game.get_current_player();
+        for (i, idxcard) in opt.iter().enumerate() {
+            let card = &p.hand[*idxcard];
             println!("{}: {:?} {:?}", i+1, card.get_color(), card.get_value());
         }
-        println!("{}: Draw a card", p.hand.len() + 1);
+        println!("{}: Draw a card", opt.len() + 1);
         let mut imput = String::new();
         io::stdin()
         .read_line(&mut imput)
@@ -182,21 +188,20 @@ fn main() {
             Err(_) => continue,
         };
 
-        if index_input == p.hand.len() {
+        if index_input == opt.len() {
             if !game.draw(game.order.get_turn()) {
                 break;
             }
             game.order.tick();
             continue;
         }
-        if index_input > p.hand.len() {
+        if index_input > opt.len() {
             println!("Enter a valid action!!!");
             continue;
         }
 
-        if !game.play_card(game.order.get_turn(), index_input) {
-            continue;
-        }
+        game.play_card(game.order.get_turn(), opt[index_input]);
+
         if game.get_player(game.order.get_turn()).hand.len() == 0 {
             break;
         }

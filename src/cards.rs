@@ -203,7 +203,11 @@ pub struct ChooseColorCard {
 }
 
 pub trait Stacks {
-	fn does_stack(&self, other: &dyn Stacks, color_comparason: &ColorComparison) -> bool;
+	fn does_stack(&self, other: &dyn Stacks, color_comparason: &ColorComparison) -> bool {
+		if self.get_value() == other.get_value() {return true;}
+		if None == other.get_color() {return true;}
+		return color_comparason(self.get_color().unwrap(), other.get_color().unwrap());
+	}
 	fn get_color(&self) -> Option<Color>;
 	fn get_value(&self) -> CardValue;
 }
@@ -215,12 +219,6 @@ impl Stacks for SimpleCard {
 
 	fn get_color(&self) -> Option<Color> {
 		return Some(self.color);
-	}
-
-	fn does_stack(&self, other: &dyn Stacks, color_comparason: &ColorComparison) -> bool {
-		if self.get_value() == other.get_value() {return true;}
-		if None == other.get_color() {return true;}
-		return color_comparason(self.get_color().unwrap(), other.get_color().unwrap());
 	}
 }
 
