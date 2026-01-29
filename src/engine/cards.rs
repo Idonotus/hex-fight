@@ -1,7 +1,7 @@
 use std::ops::Range;
 use rand::{Rng, RngCore};
 
-use crate::colors::{Color, ColorComparison};
+use crate::engine::colors::{Color, ColorComparison};
 
 pub trait IdDeck {
 	fn put_card(&mut self, card_id: u64) -> bool;
