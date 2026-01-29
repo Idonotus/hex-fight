@@ -1,5 +1,9 @@
+use bevy::prelude::*;
+
 mod engine;
 
 fn main() {
-    engine::main();
+    App::new()
+    .add_plugins(engine::EnginePlugin)
+    .run();
 }

@@ -1,5 +1,6 @@
 use std::io;
 use rand::RngCore;
+use bevy::prelude::*;
 
 mod cards;
 mod colors;
@@ -156,10 +157,17 @@ impl TurnOrder {
     }
 }
 
+pub struct EnginePlugin;
+
+impl Plugin for EnginePlugin {
+    fn build(&self, app: &mut App) {
+    }
+}
+
 pub fn main() {
     let mut game = Game::new(2, Box::new(rand::rng()));
 
-    game.deal(205);
+    game.deal(15);
     game.top_card = game.draw_card();
     loop {
         println!("Player {}'s turn: they have {} cards", game.order.get_turn() + 1, game.get_current_player().hand.len());
