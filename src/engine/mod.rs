@@ -3,6 +3,7 @@ use rand::RngCore;
 
 mod cards;
 mod colors;
+mod cardassigners;
 
 use cards::{
     CardPicker,
