@@ -221,7 +221,4 @@ impl Stacks for SimpleCard {
 		return Some(self.color);
 	}
 }
-
 pub type Card = Box<dyn Stacks>;
-
-pub type CardPicker = fn(u64) -> Card;

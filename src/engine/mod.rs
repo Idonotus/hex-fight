@@ -6,18 +6,21 @@ mod colors;
 mod cardassigners;
 
 use cards::{
-    CardPicker,
     RLEDeck,
-    SimpleCard,
     Card,
     RandomDraw,
 };
 use colors::{
-    Color,
     ColorComparison,
     build_dist_tolerance_eq,
     taxicab
 };
+use cardassigners::{
+    CardSet,
+    AllColorBand
+};
+
+use crate::engine::cardassigners::AssignedBand;
 
 struct Player {
     hand: Vec<Card>
@@ -26,7 +29,7 @@ struct Player {
 struct Game {
     deck: Box<dyn RandomDraw>,
     rng: Box<dyn RngCore>,
-    card_set: CardPicker,
+    card_set: CardSet,
 
     players: Vec<Player>,
     order: TurnOrder,
@@ -47,7 +50,7 @@ impl Game {
 
         Self {
             deck: Box::new(RLEDeck::new(0xA000000)),
-            card_set: card_generator,
+            card_set: CardSet::new(vec![Box::new(AllColorBand::new(10))]),
             players,
             order: TurnOrder::new(player_count),
             top_card: None,
@@ -61,7 +64,7 @@ impl Game {
             for p in &mut self.players {
                 let d= self.deck.as_mut();
                 let card = d.draw_card_random(self.rng.as_mut()).unwrap();
-                p.hand.push((self.card_set)(card));
+                p.hand.push(self.card_set.generate_card(card));
             }
         }
     }
@@ -86,7 +89,7 @@ impl Game {
     
     fn draw_card(&mut self) -> Option<Card> {
         match self.deck.draw_card_random(self.rng.as_mut()) {
-            Some(identity) => Some((self.card_set)(identity)),
+            Some(identity) => Some(self.card_set.generate_card(identity)),
             None => None
         }
     }
@@ -104,23 +107,6 @@ impl Game {
     fn get_current_player(&self) -> &Player {
         self.get_player(self.order.get_turn())
     }
-}
-
-fn card_generator(card: u64) -> Card {
-    let (card, r) = (card / 256, (card % 256).try_into().unwrap());
-    let (card, g) = (card / 256, (card % 256).try_into().unwrap());
-    let (value, b) = ((card / 256).try_into().unwrap(), (card % 256).try_into().unwrap());
-    
-    Box::new(
-        SimpleCard::new(
-            Color {
-                r,
-                g,
-                b
-            },
-            value
-        )
-    )
 }
 
 #[derive(Debug)]
