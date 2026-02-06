@@ -48,9 +48,11 @@ impl Game {
             );
         }
 
+        let card_set = CardSet::new(vec![Box::new(AllColorBand::new(10))]);
+        
         Self {
-            deck: Box::new(RLEDeck::new(0xA000000)),
-            card_set: CardSet::new(vec![Box::new(AllColorBand::new(10))]),
+            deck: Box::new(RLEDeck::new(card_set.get_band_size())),
+            card_set,
             players,
             order: TurnOrder::new(player_count),
             top_card: None,
