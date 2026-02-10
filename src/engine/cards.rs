@@ -221,4 +221,4 @@ impl Stacks for SimpleCard {
 		return Some(self.color);
 	}
 }
-pub type Card = Box<dyn Stacks>;
+pub type Card<'a> = Box<dyn Stacks + 'a>;
