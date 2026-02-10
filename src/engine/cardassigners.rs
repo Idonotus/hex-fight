@@ -7,13 +7,13 @@ use crate::engine::
 		colors::Color,
 	};
 
-pub trait AssignedBand {
+pub trait AssignedBand<'a> {
 	fn get_band_size(&self) -> u64;
-	fn generate_card(&mut self, c_id: u64) -> Card;
+	fn generate_card(&mut self, c_id: u64) -> Card<'a>;
 }
 
-pub struct CardSet {
-	total: Vec<Box<dyn AssignedBand>>
+pub struct CardSet<'a> {
+	total: Vec<Box<dyn AssignedBand<'a>>>
 }
 
 pub struct AllColorBand {
@@ -26,22 +26,21 @@ impl AllColorBand {
 	}
 }
 
-impl AssignedBand for AllColorBand {
-	fn generate_card(&mut self, c_id: u64) -> Card {
+impl<'a> AssignedBand<'a> for AllColorBand {
+	fn generate_card(&mut self, c_id: u64) -> Card<'a> {
 		let (c_id, r) = (c_id / 256, (c_id % 256).try_into().unwrap());
 		let (c_id, g) = (c_id / 256, (c_id % 256).try_into().unwrap());
 		let (value, b) = ((c_id / 256).try_into().unwrap(), (c_id % 256).try_into().unwrap());
 		
-		Box::new(
-			SimpleCard::new(
-				Color {
-					r,
-					g,
-					b
-				},
-				value
-			)
-		)
+		
+		return Box::new(SimpleCard::new(
+			Color {
+				r,
+				g,
+				b
+			},
+			value
+		));
 	}
 
 	fn get_band_size(&self) -> u64 {
@@ -50,14 +49,14 @@ impl AssignedBand for AllColorBand {
 	}
 }
 
-impl CardSet {
-	pub fn new(set: Vec<Box<dyn AssignedBand>>) -> Self {
+impl<'a> CardSet<'a> {
+	pub fn new(set: Vec<Box<dyn AssignedBand<'a>>>) -> Self {
 		Self { total: set }
 	}
 }
 
-impl AssignedBand for CardSet {
-	fn generate_card(&mut self, c_id: u64) -> Card {
+impl<'a> AssignedBand<'a> for CardSet<'a> {
+	fn generate_card(&mut self, c_id: u64) -> Card<'a> {
 		let mut rest = c_id;
 		for band in &mut self.total {
 			let size = band.get_band_size();

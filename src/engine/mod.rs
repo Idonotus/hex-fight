@@ -4,6 +4,7 @@ use rand::RngCore;
 mod cards;
 mod colors;
 mod cardassigners;
+mod scheduler;
 
 use cards::{
     RLEDeck,
@@ -17,28 +18,32 @@ use colors::{
 };
 use cardassigners::{
     CardSet,
-    AllColorBand
+    AllColorBand,
+    AssignedBand
+};
+use scheduler::{
+    Scheduler,
+    TurnPhase,
+    ActionQueue
 };
 
-use crate::engine::cardassigners::AssignedBand;
-
-struct Player {
-    hand: Vec<Card>
+struct Player<'a> {
+    hand: Vec<Card<'a>>
 }
 
-struct Game {
+struct Game<'a> {
     deck: Box<dyn RandomDraw>,
     rng: Box<dyn RngCore>,
-    card_set: CardSet,
+    card_set: CardSet<'a>,
 
-    players: Vec<Player>,
-    order: TurnOrder,
+    players: Vec<Player<'a>>,
+    order: Scheduler<'a>,
 
-    top_card: Option<Card>,
+    top_card: Option<Card<'a>>,
     comparison: ColorComparison,
 }
 
-impl Game {
+impl<'a> Game<'a> {
     fn new(player_count: usize, rng: Box<dyn RngCore>) -> Self {
         let mut players = Vec::new();
 
@@ -52,7 +57,7 @@ impl Game {
             deck: Box::new(RLEDeck::new(0xA000000)),
             card_set: CardSet::new(vec![Box::new(AllColorBand::new(10))]),
             players,
-            order: TurnOrder::new(player_count),
+            order: Scheduler::new(player_count),
             top_card: None,
             rng,
             comparison: build_dist_tolerance_eq(taxicab, 64),
@@ -87,7 +92,7 @@ impl Game {
         self.top_card = Some(self.players[player].hand.remove(hand_number));
     }
     
-    fn draw_card(&mut self) -> Option<Card> {
+    fn draw_card(&mut self) -> Option<Card<'a>> {
         match self.deck.draw_card_random(self.rng.as_mut()) {
             Some(identity) => Some(self.card_set.generate_card(identity)),
             None => None
@@ -109,51 +114,20 @@ impl Game {
     }
 }
 
-#[derive(Debug)]
-struct TurnOrder {
-    order: Vec<usize>,
-    queue: Vec<()>,
-    tracker: usize,
-    direction: i8,
-}
-
-impl TurnOrder {
-    fn new(player_count: usize) -> Self {
-        Self { order: Vec::from_iter(0..player_count), queue: Vec::new(), tracker: 0, direction: 1 }
-    }
-
-    fn reverse(&mut self) {
-        self.direction = -self.direction
-    }
-
-    fn tick(&mut self) {
-        let a: i64 = self.tracker.try_into().unwrap();
-        let b : i64 = self.direction.into();
-        let c: i64 = self.order.len().try_into().unwrap();
-
-        self.tracker = ((a + b) % c).try_into().unwrap();
-    }
-
-    fn skip(&mut self) {
-        todo!()
-    }
-
-    fn get_turn(&self) -> usize {
-        self.order[self.tracker]
-    }
-}
-
 pub fn main() {
     let mut game = Game::new(2, Box::new(rand::rng()));
-
+    
     game.deal(205);
     game.top_card = game.draw_card();
     loop {
+        let mut phases: ActionQueue = game.order.pop_current_turn();
+        phases.run(TurnPhase::Start);
+
         println!("Player {}'s turn: they have {} cards", game.order.get_turn() + 1, game.get_current_player().hand.len());
         let t = game.top_card.as_ref().unwrap().as_ref();
         println!("The top card is:\n{:?} {:?}\n\n", t.get_color(), t.get_value());
 
-        let opt = game.get_valid_stacks_for_player(game.order.get_turn(), &|top, other| {
+        let opt = game.get_valid_stacks_for_player(game.order.get_turn(), &|top: &Card<'_>, other: &Card<'_>| {
             top.does_stack(other.as_ref(), &game.comparison)
         });
 
@@ -177,19 +151,20 @@ pub fn main() {
             if !game.draw(game.order.get_turn()) {
                 break;
             }
-            game.order.tick();
-            continue;
-        }
-        if index_input > opt.len() {
+            phases.run(TurnPhase::Play);
+        } else if index_input > opt.len() {
             println!("Enter a valid action!!!");
             continue;
+        } else {
+            game.play_card(game.order.get_turn(), opt[index_input]);
+            phases.run(TurnPhase::Play);
         }
-
-        game.play_card(game.order.get_turn(), opt[index_input]);
 
         if game.get_player(game.order.get_turn()).hand.len() == 0 {
             break;
         }
+        
         game.order.tick();
+        phases.run(TurnPhase::End);
     }
 }
