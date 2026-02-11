@@ -1,6 +1,3 @@
-use std::{
-	ops
-};
 use enum_dict::{
 	RequiredDict,
 	DictKey
@@ -145,7 +142,7 @@ impl<'a> Scheduler<'a> {
 
 	pub fn go(&mut self, amount: usize) {
 		let samount: isize = amount.try_into().unwrap();
-;
+
 		let i: isize = self.cur_turn.try_into().unwrap();
         let b : isize = self.direction * samount;
         let c: isize = self.order.len().try_into().unwrap();
@@ -184,7 +181,7 @@ impl<'a> Scheduler<'a> {
 
 		let player = self.get_turn();
 		for t in self.playerqueue[player].drain(..) {
-			phases.0[t.phase].push(t.callback);
+			phases.push(t.phase, t.callback);
 		}
 
 		fetch_and_prune(&mut self.play_queue, &mut phases);
@@ -200,16 +197,20 @@ fn fetch_and_prune<'a>(tasks: &mut Vec<impl TimerTask<'a>>, queue: &mut ActionQu
 		let task_timer = tasks.remove(i);
 		if !task_timer.is_activating() {continue;}
 		let task = task_timer.own_task();
-		queue.0[task.phase].push(task.callback);
+		queue.push(task.phase, task.callback);
 	}
 }
 
 pub struct ActionQueue<'a>(RequiredDict<TurnPhase, Vec<Box<dyn FnOnce() -> () + 'a>>>);
 
-impl ActionQueue<'_> {
+impl<'a> ActionQueue<'a> {
 	pub fn run(&mut self, phase: TurnPhase) {
 		for t in self.0[phase].drain(..) {
 			t()
 		}
+	}
+
+	pub fn push(&mut self, phase: TurnPhase, callback: Box<dyn FnOnce() -> () + 'a>) -> () {
+		self.0[phase].push(callback);
 	}
 }
