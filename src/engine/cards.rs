@@ -1,4 +1,3 @@
-use std::ops::Range;
 use rand::{Rng, RngCore};
 
 use crate::engine::colors::{Color, ColorComparison};
