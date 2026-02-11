@@ -4,6 +4,7 @@ use rand::RngCore;
 mod cards;
 mod colors;
 mod cardassigners;
+mod actions;
 
 use cards::{
     RLEDeck,
