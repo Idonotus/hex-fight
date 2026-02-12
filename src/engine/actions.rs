@@ -1,6 +1,6 @@
 use std::mem::{ replace };
 
-enum ContextItem {
+pub enum ContextItem {
 	Player(usize),
 	CardReference(u64),
 //	Card(Card),
@@ -23,7 +23,7 @@ impl ContextItem {
 }
 
 #[derive(Eq, PartialEq, Clone, Copy)]
-enum ContextPredicate {
+pub enum ContextPredicate {
 	Player,
 	CardReference,
 //	Card,
@@ -102,20 +102,39 @@ impl Response {
 	}
 }
 
-trait Action {
-
+pub trait Action {
+	fn get_predicate(&self) -> Vec<ContextPredicate>;
+	fn get_required_references(&self) -> Vec<usize>;
+	fn run_action(&mut self, parameters: Vec<ContextItem>) -> Vec<ContextItem>;
 }
 
-enum Display {
+pub enum Display {
 	ShowHand(u8),
 	ObfuscateHand(u8),
 
 }
 
-enum Prompt {
+pub enum Prompt {
 	PickColor,
 	PickCardsFromHand(u8, u8),
 	PickNumeral,
 	PickPlayer,
 	Approval,
+}
+
+pub enum Interaction<'a> {
+	UserPrompt {
+		player: usize,
+		prompt: Prompt,
+		id: &'a str
+	},
+	UserDisplay {
+		player: Vec<usize>,
+		display: Display,
+		id: &'a str
+	},
+	UserPlays {
+		player: usize,
+		prompts: Vec<(&'a str, Prompt)>
+	}
 }
