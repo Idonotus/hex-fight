@@ -1,35 +1,52 @@
 use std::mem::{ replace };
+use crate::engine::colors::Color;
+
+trait Predicate<T> {
+	fn get_predicate(&self) -> T;
+}
 
 pub enum ContextItem {
 	Player(usize),
 	CardReference(u64),
-//	Card(Card),
+	Color(Color),
 	Number(i64),
 	Decimal(f32),
+	Boolean(bool),
+//	Card(Card),
 //	Game(Game),
 }
 
-impl ContextItem {
+impl Predicate<ContextPredicate> for ContextItem {
 	fn get_predicate(&self) -> ContextPredicate {
 		match self {
-//			ContextItem::Card(_) => ContextPredicate::Card,
+			ContextItem::Color(_) => ContextPredicate::Color,
 			ContextItem::CardReference(_) => ContextPredicate::CardReference,
 			ContextItem::Decimal(_) => ContextPredicate::Decimal,
-//			ContextItem::Game(_) => ContextPredicate::Game,
 			ContextItem::Player(_) => ContextPredicate::Player,
 			ContextItem::Number(_) => ContextPredicate::Number,
+			ContextItem::Boolean(_) => ContextPredicate::Boolean,
+//			ContextItem::Game(_) => ContextPredicate::Game,
+//			ContextItem::Card(_) => ContextPredicate::Card,
 		}
 	}
+}
+
+struct BorrowedItem {
+	reference: usize,
+	context: ContextItem,
 }
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum ContextPredicate {
 	Player,
+	Color,
 	CardReference,
-//	Card,
+	Boolean,
 	Number,
 	Decimal,
+//	Card,
 //	Game,
+
 }
 
 fn predicate_legal(a: &[ContextPredicate], b: &[ContextPredicate]) -> bool {
@@ -53,8 +70,6 @@ struct ResponseContext {
 	predicates: Vec<ContextPredicate>,
 	levels: Vec<usize>,
 }
-
-
 
 impl ResponseContext {
 	fn allocate_from_vec(&mut self, defaults: Vec<ContextItem>) -> Vec<usize> {
@@ -111,15 +126,26 @@ pub trait Action {
 pub enum Display {
 	ShowHand(u8),
 	ObfuscateHand(u8),
-
 }
 
 pub enum Prompt {
-	PickColor,
-	PickCardsFromHand(u8, u8),
-	PickNumeral,
-	PickPlayer,
+	PickColor {amount: usize},
+	PickCardsFromHand {player: usize, amount: usize},
+	PickNumeral {amount: usize},
+	PickPlayer {amount: usize},
 	Approval,
+}
+
+impl Predicate<ContextPredicate> for Prompt {
+	fn get_predicate(&self) -> ContextPredicate {
+		match self {
+			Prompt::PickColor { amount: _ } => ContextPredicate::Color,
+			Prompt::Approval => ContextPredicate::Boolean,
+			Prompt::PickPlayer { amount: _ } => ContextPredicate::Player,
+			Prompt::PickNumeral { amount: _ } => ContextPredicate::Number,
+			Prompt::PickCardsFromHand { player: _, amount: _ } => ContextPredicate::CardReference,
+		}
+	}
 }
 
 pub enum Interaction<'a> {
