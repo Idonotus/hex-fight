@@ -31,7 +31,56 @@ impl Predicate<ContextPredicate> for ContextItem {
 	}
 }
 
-struct BorrowedItem {
+impl Into<bool> for ContextItem {
+	fn into(self) -> bool {
+		match self {
+			ContextItem::Boolean(v) => v,
+			_ => panic!()
+		}
+	}
+}
+impl Into<Color> for ContextItem {
+	fn into(self) -> Color {
+		match self {
+			ContextItem::Color(v) => v,
+			_ => panic!()
+		}
+	}
+}
+impl Into<u64> for ContextItem {
+	fn into(self) -> u64 {
+		match self {
+			ContextItem::CardReference(v) => v,
+			_ => panic!()
+		}
+	}
+}
+impl Into<i64> for ContextItem {
+	fn into(self) -> i64 {
+		match self {
+			ContextItem::Number(v) => v,
+			_ => panic!()
+		}
+	}
+}
+impl Into<f32> for ContextItem {
+	fn into(self) -> f32 {
+		match self {
+			ContextItem::Decimal(v) => v,
+			_ => panic!()
+		}
+	}
+}
+impl Into<usize> for ContextItem {
+	fn into(self) -> usize {
+		match self {
+			ContextItem::Player(v) => v,
+			_ => panic!()
+		}
+	}
+}
+
+struct ItemReference {
 	reference: usize,
 	context: ContextItem,
 }
@@ -59,10 +108,10 @@ fn predicate_legal(a: &[ContextPredicate], b: &[ContextPredicate]) -> bool {
 	return true;
 }
 
-struct Response {
-	queue: Vec<Box<dyn Action>>,
+struct Response<'a> {
+	queue: Vec<Box<dyn Action<'a> + 'a>>,
 	context: ResponseContext,
-	
+	level_points: Vec<usize>,
 }
 
 struct ResponseContext {
@@ -72,6 +121,10 @@ struct ResponseContext {
 }
 
 impl ResponseContext {
+	fn get_predicates(&self, params: &Vec<usize>) -> Vec<ContextPredicate> {
+		params.iter().map(|i| {self.predicates[*i]}).collect()
+	}
+
 	fn allocate_from_vec(&mut self, defaults: Vec<ContextItem>) -> Vec<usize> {
 		self.predicates.append(&mut defaults.iter().map(ContextItem::get_predicate).collect());
 		let prev = self.context_items.len();
@@ -107,20 +160,70 @@ impl ResponseContext {
 	}
 }
 
-impl Response {
-	fn append(&mut self, actions: Vec<&dyn Action>) {
+impl<'a> Response<'a> {
+	fn append(&mut self, actions: Vec<&'a dyn Action<'a>>) {
 		todo!()
 	}
 
 	fn step(&mut self) {
-		todo!()
+		let mut action = self.queue.pop().unwrap();
+
+		let cur_len = self.queue.len();
+		for p in self.level_points.iter().rev() {
+			let point = *p;
+			if point <= cur_len {
+				break;
+			}
+			self.context.drop_level();
+		}
+
+		let predicates = action.get_predicate();
+		let params = action.get_required_references();
+		if !predicate_legal(&predicates, &self.context.get_predicates(&params)) {
+			return;
+		}
+		let mut contexts: Vec<ItemReference> = Vec::with_capacity(predicates.len());
+		for i in params.iter() {
+			contexts.push(ItemReference {
+				reference: *i,
+				context: self.context.borrow_item(*i).unwrap()
+			});
+		}
+		let mut proc = action.run_action(contexts);
+		
+		for (idx, reference) in params.into_iter().enumerate().rev() {
+			let item = proc.returned_context.pop().unwrap();
+			if predicates[idx] != item.get_predicate() {
+				panic!()
+			}
+			self.context.return_item(reference, item);
+		}
+		
+		let cur_len = self.queue.len();
+		let need_context_level = proc.further_processing.len() != 0;
+		self.append(proc.further_processing);
+
+		if !need_context_level {
+			return;
+		} if proc.additional_context.len() != 0 {
+			return;
+		}
+
+		self.level_points.push(cur_len);
+		self.context.allocate_from_vec(proc.additional_context);
 	}
 }
 
-pub trait Action {
+pub struct ActionResult<'a> {
+	returned_context: Vec<ContextItem>,
+	additional_context: Vec<ContextItem>,
+	further_processing: Vec<&'a dyn Action<'a>>,
+}
+
+pub trait Action<'a> {
 	fn get_predicate(&self) -> Vec<ContextPredicate>;
 	fn get_required_references(&self) -> Vec<usize>;
-	fn run_action(&mut self, parameters: Vec<ContextItem>) -> Vec<ContextItem>;
+	fn run_action(self: Box<Self>, parameters: Vec<ItemReference>) -> ActionResult<'a>;
 }
 
 pub enum Display {
