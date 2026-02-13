@@ -80,9 +80,9 @@ impl Into<usize> for ContextItem {
 	}
 }
 
-struct ItemReference {
+pub struct ItemReference {
 	reference: usize,
-	context: ContextItem,
+	pub context: ContextItem,
 }
 
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -109,7 +109,7 @@ fn predicate_legal(a: &[ContextPredicate], b: &[ContextPredicate]) -> bool {
 }
 
 struct Response<'a> {
-	queue: Vec<Box<dyn Action<'a> + 'a>>,
+	queue: Vec<Interaction<'a>>,
 	context: ResponseContext,
 	level_points: Vec<usize>,
 }
@@ -161,12 +161,12 @@ impl ResponseContext {
 }
 
 impl<'a> Response<'a> {
-	fn append(&mut self, actions: Vec<&'a dyn Action<'a>>) {
-		todo!()
+	fn append(&mut self, mut actions: Vec<Interaction<'a>>) {
+		self.queue.append(&mut actions);
 	}
 
-	fn step(&mut self) {
-		let mut action = self.queue.pop().unwrap();
+	fn pop(&mut self) -> Interaction<'a> {
+		let action = self.queue.pop().unwrap();
 
 		let cur_len = self.queue.len();
 		for p in self.level_points.iter().rev() {
@@ -176,7 +176,11 @@ impl<'a> Response<'a> {
 			}
 			self.context.drop_level();
 		}
+		
+		return action;
+	}
 
+	fn handle_action<'b>(&mut self, action: Box<dyn Action<'a> + 'b>) {
 		let predicates = action.get_predicate();
 		let params = action.get_required_references();
 		if !predicate_legal(&predicates, &self.context.get_predicates(&params)) {
@@ -199,25 +203,36 @@ impl<'a> Response<'a> {
 			self.context.return_item(reference, item);
 		}
 		
-		let cur_len = self.queue.len();
-		let need_context_level = proc.further_processing.len() != 0;
-		self.append(proc.further_processing);
-
-		if !need_context_level {
-			return;
-		} if proc.additional_context.len() != 0 {
-			return;
+		if proc.additional_context.len() != 0 {
+			self.level_points.push(self.queue.len());
+			self.context.allocate_from_vec(proc.additional_context);
 		}
 
-		self.level_points.push(cur_len);
-		self.context.allocate_from_vec(proc.additional_context);
+		self.append(proc.further_processing);
 	}
 }
 
 pub struct ActionResult<'a> {
 	returned_context: Vec<ContextItem>,
 	additional_context: Vec<ContextItem>,
-	further_processing: Vec<&'a dyn Action<'a>>,
+	further_processing: Vec<Interaction<'a>>,
+}
+
+enum Interaction<'a> {
+	Action(Box<dyn Action<'a> + 'a>),
+	UserPrompt {
+		player: usize,
+		prompt: Prompt,
+		id: &'a str
+	},
+	UserDisplay {
+		player: Vec<usize>,
+		display: Display,
+		id: &'a str
+	},
+	UserPlays {
+		player: usize,
+	}
 }
 
 pub trait Action<'a> {
@@ -232,38 +247,21 @@ pub enum Display {
 }
 
 pub enum Prompt {
-	PickColor {amount: usize},
-	PickCardsFromHand {player: usize, amount: usize},
-	PickNumeral {amount: usize},
-	PickPlayer {amount: usize},
-	Approval,
+	PickColor {amount: usize, references: Vec<usize>},
+	PickCardsFromHand {player: usize, amount: usize, references: Vec<usize>},
+	PickNumeral {amount: usize, references: Vec<usize>},
+	PickPlayer {amount: usize, references: Vec<usize>},
+	Approval {reference: usize},
 }
 
 impl Predicate<ContextPredicate> for Prompt {
 	fn get_predicate(&self) -> ContextPredicate {
 		match self {
-			Prompt::PickColor { amount: _ } => ContextPredicate::Color,
-			Prompt::Approval => ContextPredicate::Boolean,
-			Prompt::PickPlayer { amount: _ } => ContextPredicate::Player,
-			Prompt::PickNumeral { amount: _ } => ContextPredicate::Number,
-			Prompt::PickCardsFromHand { player: _, amount: _ } => ContextPredicate::CardReference,
+			Prompt::PickColor { amount: _, references: _ } => ContextPredicate::Color,
+			Prompt::Approval { reference: _ } => ContextPredicate::Boolean,
+			Prompt::PickPlayer { amount: _, references: _ } => ContextPredicate::Player,
+			Prompt::PickNumeral { amount: _, references: _ } => ContextPredicate::Number,
+			Prompt::PickCardsFromHand { player: _, amount: _, references: _ } => ContextPredicate::CardReference,
 		}
-	}
-}
-
-pub enum Interaction<'a> {
-	UserPrompt {
-		player: usize,
-		prompt: Prompt,
-		id: &'a str
-	},
-	UserDisplay {
-		player: Vec<usize>,
-		display: Display,
-		id: &'a str
-	},
-	UserPlays {
-		player: usize,
-		prompts: Vec<(&'a str, Prompt)>
 	}
 }
