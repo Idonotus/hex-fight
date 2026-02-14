@@ -230,9 +230,6 @@ enum Interaction<'a> {
 		display: Display,
 		id: &'a str
 	},
-	UserPlays {
-		player: usize,
-	}
 }
 
 pub trait Action<'a> {
