@@ -11,6 +11,7 @@ use cards::{
     RLEDeck,
     Card,
     RandomDraw,
+    does_stack,
 };
 use colors::{
     ColorComparison,
@@ -130,8 +131,8 @@ pub fn main() {
         let t = game.top_card.as_ref().unwrap().as_ref();
         println!("The top card is:\n{:?} {:?}\n\n", t.get_color(), t.get_value());
 
-        let opt = game.get_valid_stacks_for_player(game.order.get_turn(), &|top: &Card<'_>, other: &Card<'_>| {
-            top.does_stack(other.as_ref(), &game.comparison)
+        let opt = game.get_valid_stacks_for_player(game.order.get_turn(), &|base: &Card<'_>, head: &Card<'_>| {
+            does_stack(base, head, &game.comparison)
         });
 
         let p = game.get_current_player();

@@ -1,6 +1,13 @@
-use rand::{Rng, RngCore};
+use rand::{
+	Rng,
+	RngCore
+};
+use std::cmp::Ordering;
 
-use crate::engine::colors::{Color, ColorComparison};
+use crate::engine::colors::{
+	Color,
+	ColorComparison
+};
 
 pub trait IdDeck {
 	fn put_card(&mut self, card_id: u64) -> bool;
@@ -182,7 +189,7 @@ impl RandomDraw for RLEDeck {}
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum CardValue {
-	Special,
+	Special(usize),
 	Numeral(u8),
 }
 
@@ -190,6 +197,7 @@ pub struct SimpleCard {
 	color: Color,
 	value: CardValue,
 }
+
 impl SimpleCard {
 	pub fn new(color: Color, value: u8) -> Self {
 		Self { color, value: CardValue::Numeral(value) }
@@ -201,11 +209,19 @@ pub struct ChooseColorCard {
 	value: CardValue,
 }
 
+
+
 pub trait Stacks {
-	fn does_stack(&self, other: &dyn Stacks, color_comparason: &ColorComparison) -> bool {
-		if self.get_value() == other.get_value() {return true;}
-		if None == other.get_color() {return true;}
-		return color_comparason(self.get_color().unwrap(), other.get_color().unwrap());
+	fn get_stacking_priority(&self) -> i16;
+	fn can_get_stacked(&self, head: &dyn Stacks, color_comparason: &ColorComparison) -> bool {
+		if self.get_value() == head.get_value() {return true;}
+		if None == head.get_color() {return true;}
+		return color_comparason(self.get_color().unwrap(), head.get_color().unwrap());
+	}
+	fn can_stack_onto(&self, base: &dyn Stacks, color_comparason: &ColorComparison) -> bool {
+		if self.get_value() == base.get_value() {return true;}
+		if None == base.get_color() {return true;}
+		return color_comparason(self.get_color().unwrap(), base.get_color().unwrap());
 	}
 	fn get_color(&self) -> Option<Color>;
 	fn get_value(&self) -> CardValue;
@@ -219,5 +235,17 @@ impl Stacks for SimpleCard {
 	fn get_color(&self) -> Option<Color> {
 		return Some(self.color);
 	}
+
+	fn get_stacking_priority(&self) -> i16 {
+		0
+	}
 }
+
 pub type Card<'a> = Box<dyn Stacks + 'a>;
+
+pub fn does_stack(base: &Card, head: &Card, color_comparason: &ColorComparison) -> bool {
+	match base.get_stacking_priority().cmp(&head.get_stacking_priority()) {
+		Ordering::Less | Ordering::Equal => {base.can_get_stacked(head.as_ref(), color_comparason)},
+		Ordering::Greater => {head.can_stack_onto(base.as_ref(), color_comparason)},
+	}
+}
