@@ -5,6 +5,7 @@ mod cards;
 mod colors;
 mod cardassigners;
 mod scheduler;
+mod actions;
 
 use cards::{
     RLEDeck,
