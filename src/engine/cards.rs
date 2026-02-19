@@ -25,8 +25,12 @@ pub trait RandomDraw: IdDeck {
 			return None;
 		}
 		let card = rng.random_range(0..self.get_size());
+		let card_id = self.map_available_to_overall(card);
+		if !self.pop_card(card_id) {
+			panic!("Mapping provided card that was already drawn")
+		}
 
-		return Some(self.map_available_to_overall(card));
+		return Some(card_id);
 	}
 }
 
@@ -79,11 +83,11 @@ impl RLEDeck {
 		if exist_tracker == state {
 			return false;
 		}
-		self.flip_some(latest_i, dist_tracker, 1);
+		self.flip_in_block(latest_i, dist_tracker, 1);
 		return true;
 	}
 	
-	fn flip_some(&mut self, index: usize, offset: u64, size: u64) {
+	fn flip_in_block(&mut self, index: usize, offset: u64, size: u64) {
 		if (self.deck[index] - offset) < size {
 			panic!("Deck doesn't have continuous block to flip")
 		}
@@ -151,7 +155,7 @@ impl IdDeck for RLEDeck {
 		}
 		let res = self.set_state(card_id, true);
 		if res {
-			self.current_size -= 1;
+			self.current_size += 1;
 		}
 		return res;
 	}
@@ -208,8 +212,6 @@ pub struct ChooseColorCard {
 	color: Option<Color>,
 	value: CardValue,
 }
-
-
 
 pub trait Stacks {
 	fn get_stacking_priority(&self) -> i16;

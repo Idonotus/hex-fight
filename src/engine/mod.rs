@@ -121,7 +121,7 @@ impl<'a> Game<'a> {
 pub fn main() {
     let mut game = Game::new(2, Box::new(rand::rng()));
     
-    game.deal(205);
+    game.deal(2026);
     game.top_card = game.draw_card();
     loop {
         let mut phases: ActionQueue = game.order.pop_current_turn();
