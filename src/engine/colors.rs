@@ -1,7 +1,7 @@
 use std::cmp::PartialOrd;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub struct Color {
+pub(crate) struct Color {
 	pub r: u8,
 	pub g: u8,
 	pub b: u8

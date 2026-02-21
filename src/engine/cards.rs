@@ -197,22 +197,6 @@ pub enum CardValue {
 	Numeral(u8),
 }
 
-pub struct SimpleCard {
-	color: Color,
-	value: CardValue,
-}
-
-impl SimpleCard {
-	pub fn new(color: Color, value: u8) -> Self {
-		Self { color, value: CardValue::Numeral(value) }
-	}
-}
-
-pub struct ChooseColorCard {
-	color: Option<Color>,
-	value: CardValue,
-}
-
 pub trait Stacks {
 	fn get_stacking_priority(&self) -> i16;
 	fn can_get_stacked(&self, head: &dyn Stacks, color_comparason: &ColorComparison) -> bool {
@@ -227,20 +211,6 @@ pub trait Stacks {
 	}
 	fn get_color(&self) -> Option<Color>;
 	fn get_value(&self) -> CardValue;
-}
-
-impl Stacks for SimpleCard {
-	fn get_value(&self) -> CardValue {
-		return self.value;
-	}
-
-	fn get_color(&self) -> Option<Color> {
-		return Some(self.color);
-	}
-
-	fn get_stacking_priority(&self) -> i16 {
-		0
-	}
 }
 
 pub type Card<'a> = Box<dyn Stacks + 'a>;

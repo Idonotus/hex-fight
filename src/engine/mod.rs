@@ -1,9 +1,9 @@
 use std::io;
 use rand::RngCore;
 
-mod cards;
-mod colors;
-mod cardassigners;
+pub mod cards;
+pub mod colors;
+pub mod cardassigners;
 mod scheduler;
 mod actions;
 
@@ -28,6 +28,10 @@ use scheduler::{
     TurnPhase,
     ActionQueue
 };
+
+pub(crate) trait Predicate<T> {
+	fn get_predicate(&self) -> T;
+}
 
 struct Player<'a> {
     hand: Vec<Card<'a>>
