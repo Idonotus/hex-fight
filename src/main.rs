@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 mod resizeplugin;
 mod engine;
+mod content;
+mod orchestrator;
 
 fn main() {
     App::new()

@@ -94,7 +94,6 @@ pub enum ContextPredicate {
 	Decimal,
 //	Card,
 //	Game,
-
 }
 
 fn predicate_legal(a: &[ContextPredicate], b: &[ContextPredicate]) -> bool {

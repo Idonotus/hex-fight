@@ -3,25 +3,20 @@ use rand::RngCore;
 
 pub mod cards;
 pub mod colors;
-pub mod cardassigners;
 mod scheduler;
 mod actions;
 
 use cards::{
     RLEDeck,
-    Card,
     RandomDraw,
     does_stack,
+    BandSet,
+    AssignedBand,
 };
 use colors::{
     ColorComparison,
     build_dist_tolerance_eq,
     taxicab
-};
-use cardassigners::{
-    CardSet,
-    AllColorBand,
-    AssignedBand
 };
 use scheduler::{
     Scheduler,
@@ -29,28 +24,38 @@ use scheduler::{
     ActionQueue
 };
 
+use crate::engine::cards::Stacks;
+
 pub(crate) trait Predicate<T> {
 	fn get_predicate(&self) -> T;
 }
 
-struct Player<'a> {
-    hand: Vec<Card<'a>>
+struct Player<Card> {
+    hand: Vec<Card>
 }
 
-struct Game<'a> {
+pub struct Game<'a, Band, Card> 
+where
+    Card: Stacks,
+    Band: AssignedBand<'a, Card>
+{
     deck: Box<dyn RandomDraw>,
     rng: Box<dyn RngCore>,
-    card_set: CardSet<'a>,
+    card_set: BandSet<'a, Band, Card>,
 
-    players: Vec<Player<'a>>,
+    players: Vec<Player<Card>>,
     order: Scheduler<'a>,
 
-    top_card: Option<Card<'a>>,
+    top_card: Option<Card>,
     comparison: ColorComparison,
 }
 
-impl<'a> Game<'a> {
-    fn new(player_count: usize, rng: Box<dyn RngCore>) -> Self {
+impl<'a, Band, Card> Game<'a, Band, Card>
+where
+    Card: Stacks,
+    Band: AssignedBand<'a, Card>
+{
+    fn new(player_count: usize, rng: Box<dyn RngCore>, card_set: BandSet<'a, Band, Card>) -> Self {
         let mut players = Vec::new();
 
         for _ in 0..player_count {
@@ -59,8 +64,6 @@ impl<'a> Game<'a> {
             );
         }
 
-        let card_set = CardSet::new(vec![Box::new(AllColorBand::new(10))]);
-        
         Self {
             deck: Box::new(RLEDeck::new(card_set.get_band_size())),
             card_set,
@@ -82,7 +85,7 @@ impl<'a> Game<'a> {
         }
     }
 
-    fn get_player(&self, p: usize) -> &Player {
+    fn get_player(&self, p: usize) -> &Player<Card> {
         return &self.players[p]
     }
 
@@ -100,7 +103,7 @@ impl<'a> Game<'a> {
         self.top_card = Some(self.players[player].hand.remove(hand_number));
     }
     
-    fn draw_card(&mut self) -> Option<Card<'a>> {
+    fn draw_card(&mut self) -> Option<Card> {
         match self.deck.draw_card_random(self.rng.as_mut()) {
             Some(identity) => Some(self.card_set.generate_card(identity)),
             None => None
@@ -117,7 +120,7 @@ impl<'a> Game<'a> {
         }));
     }
     
-    fn get_current_player(&self) -> &Player {
+    fn get_current_player(&self) -> &Player<Card> {
         self.get_player(self.order.get_turn())
     }
 }

@@ -2,7 +2,8 @@ use rand::{
 	Rng,
 	RngCore
 };
-use std::cmp::Ordering;
+use std::{cmp::Ordering, marker::PhantomData};
+use std::ops::Add;
 
 use crate::engine::colors::{
 	Color,
@@ -219,5 +220,60 @@ pub fn does_stack(base: &Card, head: &Card, color_comparason: &ColorComparison) 
 	match base.get_stacking_priority().cmp(&head.get_stacking_priority()) {
 		Ordering::Less | Ordering::Equal => {base.can_get_stacked(head.as_ref(), color_comparason)},
 		Ordering::Greater => {head.can_stack_onto(base.as_ref(), color_comparason)},
+	}
+}
+
+pub(crate) trait AssignedBand<'a, C> {
+	fn get_band_size(&self) -> u64;
+	fn generate_card(&mut self, c_id: u64) -> C;
+}
+
+impl<'a, C> AssignedBand<'a, C> for Box<dyn AssignedBand<'a, C> + 'a> {
+	fn generate_card(&mut self, c_id: u64) -> C {
+		self.as_mut().generate_card(c_id)
+	}
+	fn get_band_size(&self) -> u64 {
+		self.as_ref().get_band_size()
+	}
+}
+
+pub(crate) struct BandSet<'a, Band, C>(Vec<Band>, PhantomData<&'a C>) where Band: AssignedBand<'a, C>;
+
+impl<'a, Band, T> BandSet<'a, Band, T>
+where Band: AssignedBand<'a, T> {
+	pub fn new(set: Vec<Band>) -> Self {
+		Self(set, PhantomData)
+	}
+
+	pub fn iter(&self) -> std::slice::Iter<'_, Band> {
+		self.0.iter()
+	}
+}
+
+impl<'a, T, Band> Add<BandSet<'a, Band, T>> for BandSet<'a, Band, T>
+where Band: AssignedBand<'a, T> {
+	type Output = BandSet<'a, Band, T>;
+	fn add(mut self, mut rhs: BandSet<'a, Band, T>) -> Self::Output {
+		self.0.append(&mut rhs.0);
+		self
+	}
+}
+
+impl<'a, T, Band> AssignedBand<'a, T> for BandSet<'a, Band, T>
+where Band: AssignedBand<'a, T> {
+	fn generate_card(&mut self, c_id: u64) -> T {
+		let mut rest = c_id;
+		for band in &mut self.0 {
+			let size = band.get_band_size();
+			if rest < size {
+				return band.generate_card(rest);
+			}
+			rest -= size;
+		}
+		panic!("Card is out of set")
+	}
+
+	fn get_band_size(&self) -> u64 {
+		self.0.iter().map(|b| {b.get_band_size()}).sum()
 	}
 }
