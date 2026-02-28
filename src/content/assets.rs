@@ -7,22 +7,23 @@ use crate::engine::{
 	},
 };
 
-struct CardAssets {
-	name: &'static str,
-	description: &'static str,
+pub struct CardAssets {
+	pub name: &'static str,
+	pub description: &'static str,
 
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-struct AssetReference {
-	
+pub enum AssetReference {
+	Texture(String),
+	Material(String)
 }
 
-trait Assetable {
+pub trait Assetable {
 	fn get_assets(&self) -> CardAssets;
 }
 
-trait AssetBand<'a, C>: AssignedBand<'a, C>
+pub trait AssetBand<'a, C>: AssignedBand<'a, C>
 where C: Assetable {
 	fn predict_assets(&self) -> HashSet<AssetReference> {
 		panic!()

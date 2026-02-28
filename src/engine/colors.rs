@@ -1,4 +1,7 @@
-use std::cmp::PartialOrd;
+use std::{
+	cmp::PartialOrd,
+	fmt::Display
+};
 
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub(crate) struct Color {
@@ -49,6 +52,12 @@ impl Color {
 		} else {
 			60f32*((vals[0]-vals[1])/delta + 4f32)
 		}
+	}
+}
+
+impl Display for Color {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "#{:x}{:x}{:x}", self.r, self.g, self.b)
 	}
 }
 

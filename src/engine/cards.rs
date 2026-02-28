@@ -214,12 +214,29 @@ pub trait Stacks {
 	fn get_value(&self) -> CardValue;
 }
 
-pub type Card<'a> = Box<dyn Stacks + 'a>;
+impl Stacks for Box<dyn Stacks> {
+	fn can_get_stacked(&self, head: &dyn Stacks, color_comparason: &ColorComparison) -> bool {
+		self.as_ref().can_get_stacked(head, color_comparason)
+	}
+	fn can_stack_onto(&self, base: &dyn Stacks, color_comparason: &ColorComparison) -> bool {
+		self.as_ref().can_stack_onto(base, color_comparason)
+	}
 
-pub fn does_stack(base: &Card, head: &Card, color_comparason: &ColorComparison) -> bool {
+	fn get_color(&self) -> Option<Color> {
+		self.as_ref().get_color()	
+	}
+	fn get_value(&self) -> CardValue {
+		self.as_ref().get_value()
+	}
+	fn get_stacking_priority(&self) -> i16 {
+		self.as_ref().get_stacking_priority()
+	}
+}
+
+pub fn does_stack(base: &dyn Stacks, head: &dyn Stacks, color_comparason: &ColorComparison) -> bool {
 	match base.get_stacking_priority().cmp(&head.get_stacking_priority()) {
-		Ordering::Less | Ordering::Equal => {base.can_get_stacked(head.as_ref(), color_comparason)},
-		Ordering::Greater => {head.can_stack_onto(base.as_ref(), color_comparason)},
+		Ordering::Less | Ordering::Equal => {base.can_get_stacked(head, color_comparason)},
+		Ordering::Greater => {head.can_stack_onto(base, color_comparason)},
 	}
 }
 

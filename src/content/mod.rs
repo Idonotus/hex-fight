@@ -2,10 +2,16 @@ mod assets;
 
 use std::marker::PhantomData;
 
+use assets::{
+	AssetBand,
+	Assetable,
+	AssetReference,
+	CardAssets
+};
+
 use crate::engine::{
 	cards::{
 		CardValue,
-		Card,
 		Stacks,
 		AssignedBand
 	},
@@ -22,8 +28,10 @@ impl AllColorBand {
 	}
 }
 
-impl<'a> AssignedBand<'a, Card<'a>> for AllColorBand {
-	fn generate_card(&mut self, c_id: u64) -> Card<'a> {
+trait Card: Stacks + Assetable {}
+
+impl<'a> AssignedBand<'a, Box<dyn Card + 'a>> for AllColorBand {
+	fn generate_card(&mut self, c_id: u64) -> Box<dyn Card + 'a>> {
 		let (c_id, r) = (c_id / 256, (c_id % 256).try_into().unwrap());
 		let (c_id, g) = (c_id / 256, (c_id % 256).try_into().unwrap());
 		let (value, b) = ((c_id / 256).try_into().unwrap(), (c_id % 256).try_into().unwrap());
@@ -45,6 +53,17 @@ impl<'a> AssignedBand<'a, Card<'a>> for AllColorBand {
 	}
 }
 
+pub struct SimpleCard {
+	color: Color,
+	value: CardValue,
+}
+
+impl SimpleCard {
+	pub fn new(color: Color, value: u8) -> Self {
+		Self { color, value: CardValue::Numeral(value) }
+	}
+}
+
 impl Stacks for SimpleCard {
 	fn get_value(&self) -> CardValue {
 		return self.value;
@@ -59,16 +78,16 @@ impl Stacks for SimpleCard {
 	}
 }
 
-pub struct SimpleCard {
-	color: Color,
-	value: CardValue,
-}
-
-impl SimpleCard {
-	pub fn new(color: Color, value: u8) -> Self {
-		Self { color, value: CardValue::Numeral(value) }
+impl Assetable for SimpleCard {
+	fn get_assets(&self) -> CardAssets {
+		CardAssets {
+			name: format!("{:?} of {}", self.get_value(), self.get_color().unwrap()).as_str(),
+			description: "A normal card"
+		}
 	}
 }
+
+impl Card for SimpleCard {}
 
 pub struct ChooseColorCard {
 	color: Option<Color>,
@@ -88,7 +107,7 @@ where Band: AssignedBand<'a, C> {
 impl<'a, Band, C> AssignedBand<'a, C> for PluralBand<'a, Band, C>
 where Band: AssignedBand<'a, C> {
 	fn generate_card(&mut self, c_id: u64) -> C {
-		self.0.generate_card(c_id % self.1)	
+		self.0.generate_card(c_id / self.1)	
 	}
 
 	fn get_band_size(&self) -> u64 {
