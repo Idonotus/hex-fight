@@ -244,21 +244,21 @@ pub enum Display {
 }
 
 pub enum Prompt {
-	PickColor {amount: usize, references: Vec<usize>},
-	PickCardsFromHand {player: usize, amount: usize, references: Vec<usize>},
-	PickNumeral {amount: usize, references: Vec<usize>},
-	PickPlayer {amount: usize, references: Vec<usize>},
-	Approval {reference: usize},
+	PickColor { references: Vec<usize> },
+	PickCardsFromHand { player: usize, references: Vec<usize> },
+	PickNumeral { references: Vec<usize> },
+	PickPlayer { references: Vec<usize> },
+	Approval { reference: usize },
 }
 
 impl Predicate<ContextPredicate> for Prompt {
 	fn get_predicate(&self) -> ContextPredicate {
 		match self {
-			Prompt::PickColor { amount: _, references: _ } => ContextPredicate::Color,
+			Prompt::PickColor { references: _ } => ContextPredicate::Color,
 			Prompt::Approval { reference: _ } => ContextPredicate::Boolean,
-			Prompt::PickPlayer { amount: _, references: _ } => ContextPredicate::Player,
-			Prompt::PickNumeral { amount: _, references: _ } => ContextPredicate::Number,
-			Prompt::PickCardsFromHand { player: _, amount: _, references: _ } => ContextPredicate::CardReference,
+			Prompt::PickPlayer { references: _ } => ContextPredicate::Player,
+			Prompt::PickNumeral { references: _ } => ContextPredicate::Number,
+			Prompt::PickCardsFromHand { player: _, references: _ } => ContextPredicate::CardReference,
 		}
 	}
 }
