@@ -1,21 +1,19 @@
-mod assets;
-
 use std::marker::PhantomData;
 
-use assets::{
-	AssetBand,
-	Assetable,
-	AssetReference,
-	CardAssets
-};
+
+use bevy::platform::collections::HashSet;
 
 use crate::engine::{
 	cards::{
 		CardValue,
 		Stacks,
-		AssignedBand
+		AssignedBand,
+		BaseBand
 	},
-	colors::Color,
+	colors::{
+		Color,
+		ColorComparison
+	}
 };
 
 pub struct AllColorBand {
@@ -26,30 +24,33 @@ impl AllColorBand {
 	pub fn new(n: u8) -> Self {
 		Self { numeral: n }
 	}
-}
 
-trait Card: Stacks + Assetable {}
-
-impl<'a> AssignedBand<'a, Box<dyn Card + 'a>> for AllColorBand {
-	fn generate_card(&mut self, c_id: u64) -> Box<dyn Card + 'a>> {
+	pub fn generate_card(&mut self, c_id: u64) -> SimpleCard {
 		let (c_id, r) = (c_id / 256, (c_id % 256).try_into().unwrap());
 		let (c_id, g) = (c_id / 256, (c_id % 256).try_into().unwrap());
 		let (value, b) = ((c_id / 256).try_into().unwrap(), (c_id % 256).try_into().unwrap());
 		
-		
-		return Box::new(SimpleCard::new(
+		return SimpleCard::new(
 			Color {
 				r,
 				g,
 				b
 			},
 			value
-		));
+		);
 	}
+}
 
+impl BaseBand for AllColorBand {
 	fn get_band_size(&self) -> u64 {
 		let i: u64 = self.numeral.into();
 		return 0x1000000u64 * i;
+	}
+}
+
+impl<'a> AssignedBand<'a, Box<dyn Stacks + 'a>> for AllColorBand {
+	fn generate_card(&mut self, c_id: u64) -> Box<dyn Stacks + 'a> {
+		return Box::new(self.generate_card(c_id));
 	}
 }
 
@@ -78,23 +79,12 @@ impl Stacks for SimpleCard {
 	}
 }
 
-impl Assetable for SimpleCard {
-	fn get_assets(&self) -> CardAssets {
-		CardAssets {
-			name: format!("{:?} of {}", self.get_value(), self.get_color().unwrap()).as_str(),
-			description: "A normal card"
-		}
-	}
-}
-
-impl Card for SimpleCard {}
-
 pub struct ChooseColorCard {
 	color: Option<Color>,
 	value: CardValue,
 }
 
-struct PluralBand<'a, Band, C>(Band, u64, PhantomData<&'a C>)
+pub struct PluralBand<'a, Band, C>(pub Band, u64, PhantomData<&'a C>)
 where Band: AssignedBand<'a, C>;
 
 impl<'a, Band, C> PluralBand<'a, Band, C>
@@ -104,13 +94,14 @@ where Band: AssignedBand<'a, C> {
 	}
 }
 
-impl<'a, Band, C> AssignedBand<'a, C> for PluralBand<'a, Band, C>
-where Band: AssignedBand<'a, C> {
-	fn generate_card(&mut self, c_id: u64) -> C {
-		self.0.generate_card(c_id / self.1)	
-	}
-
+impl<'a, Band: AssignedBand<'a, C>, C> BaseBand for PluralBand<'a, Band, C> {
 	fn get_band_size(&self) -> u64 {
 		self.0.get_band_size() * self.1
+	}
+}
+
+impl<'a, Band: AssignedBand<'a, C>, C> AssignedBand<'a, C> for PluralBand<'a, Band, C> {
+	fn generate_card(&mut self, c_id: u64) -> C {
+		self.0.generate_card(c_id / self.1)	
 	}
 }

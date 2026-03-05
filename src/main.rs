@@ -4,6 +4,7 @@ mod resizeplugin;
 mod engine;
 mod content;
 mod orchestrator;
+mod cardrenderer;
 
 fn main() {
     App::new()

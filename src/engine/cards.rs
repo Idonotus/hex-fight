@@ -240,17 +240,23 @@ pub fn does_stack(base: &dyn Stacks, head: &dyn Stacks, color_comparason: &Color
 	}
 }
 
-pub(crate) trait AssignedBand<'a, C> {
+pub(crate) trait BaseBand {
 	fn get_band_size(&self) -> u64;
+}
+
+pub(crate) trait AssignedBand<'a, C>: BaseBand {
 	fn generate_card(&mut self, c_id: u64) -> C;
+}
+
+impl<'a, C> BaseBand for Box<dyn AssignedBand<'a, C> + 'a> {
+	fn get_band_size(&self) -> u64 {
+		self.as_ref().get_band_size()
+	}
 }
 
 impl<'a, C> AssignedBand<'a, C> for Box<dyn AssignedBand<'a, C> + 'a> {
 	fn generate_card(&mut self, c_id: u64) -> C {
 		self.as_mut().generate_card(c_id)
-	}
-	fn get_band_size(&self) -> u64 {
-		self.as_ref().get_band_size()
 	}
 }
 
@@ -276,6 +282,12 @@ where Band: AssignedBand<'a, T> {
 	}
 }
 
+impl<'a, Band: AssignedBand<'a, T>, T> BaseBand for BandSet<'a, Band, T> {
+	fn get_band_size(&self) -> u64 {
+		self.0.iter().map(|b| {b.get_band_size()}).sum()
+	}
+}
+
 impl<'a, T, Band> AssignedBand<'a, T> for BandSet<'a, Band, T>
 where Band: AssignedBand<'a, T> {
 	fn generate_card(&mut self, c_id: u64) -> T {
@@ -288,9 +300,5 @@ where Band: AssignedBand<'a, T> {
 			rest -= size;
 		}
 		panic!("Card is out of set")
-	}
-
-	fn get_band_size(&self) -> u64 {
-		self.0.iter().map(|b| {b.get_band_size()}).sum()
 	}
 }

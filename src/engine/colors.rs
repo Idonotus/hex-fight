@@ -19,15 +19,15 @@ fn get_min_val(vals: &[f32; 3]) -> f32 {
 }
 
 impl Color {
-	fn get_float_vals(&self) -> [f32; 3] {
+	pub fn get_float_vals(&self) -> [f32; 3] {
 		[(self.r/255).into(), (self.g/255).into(), (self.b/255).into()]
 	}
 
-	fn get_value(&self) -> f32 {
+	pub fn get_value(&self) -> f32 {
 		get_max_val(&self.get_float_vals())
 	}
 
-	fn get_saturation(&self) -> f32 {
+	pub fn get_saturation(&self) -> f32 {
 		let vals = self.get_float_vals();
 		let max_val = get_max_val(&vals);
 		let min_val = get_min_val(&vals);
@@ -37,7 +37,7 @@ impl Color {
 		(max_val - min_val)/max_val
 	}
 
-	fn get_hue(&self) -> f32 {
+	pub fn get_hue(&self) -> f32 {
 		let vals = self.get_float_vals();
 		let max_val = get_max_val(&vals);
 		let min_val = get_min_val(&vals);
