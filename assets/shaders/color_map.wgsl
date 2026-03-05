@@ -8,6 +8,10 @@
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
-    var pixel: i8 = bitcast(textureSample(base_color_texture, base_color_sampler, mesh.uv)[0]*256);
+	var pixel: vec4f = textureSample(base_color_texture, base_color_sampler, mesh.uv)[0];
+	if pixel[4] < 0.5 {
+		return pixel
+	}
+    var r: i8 = bitcast(pixel*256);
 	return color_map[pixel];
 }
