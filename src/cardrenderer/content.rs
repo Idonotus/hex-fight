@@ -1,13 +1,13 @@
 use bevy::color::LinearRgba;
 use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
-use bevy::render::render_resource::AsBindGroup;
-use bevy::shader::ShaderRef;
-use bevy::sprite_render::{AlphaMode2d, Material2d};
 
 use crate::content::*;
-use crate::cardrenderer::assets::{
-	AssetBand, AssetReference, Assetable, Details, Asset
+use super::{
+	assets::{
+		AssetBand, AssetReference, Assetable, Details, Asset
+	},
+	materials::RecolourMaterial
 };
 use crate::engine::{
 	cards::{
@@ -17,33 +17,14 @@ use crate::engine::{
 	colors::Color as CardColor
 };
 
-const CARD_BASE: String = "card-base".to_owned();
+const CARD_BASE: &'static str = "card-base";
 const WHITE: LinearRgba = LinearRgba::new(1.0, 1.0, 1.0, 1.0);
 const BLACK: LinearRgba = LinearRgba::new(0.0, 0.0, 0.0, 1.0);
 
 impl Into<LinearRgba> for CardColor {
 	fn into(self) -> LinearRgba {
-		LinearRgba { red: self.r.into() / 256.0, green: self.r.into() / 256.0, blue: self.b.into() / 256.0, alpha: 1.0 }
+		LinearRgba { red: <u8 as Into<f32>>::into(self.r) / 256.0, green: <u8 as Into<f32>>::into(self.g) / 256.0, blue: <u8 as Into<f32>>::into(self.b) / 256.0, alpha: 1.0 }
 	}
-}
-
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-struct RecolourMaterial {
-    #[uniform(0)]
-    pallete: Vec<LinearRgba>,
-    #[texture(1)]
-    #[sampler(2)]
-    color_texture: Option<Handle<Image>>,
-}
-
-impl Material2d for RecolourMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/color_map.wgsl".into()
-    }
-
-    fn alpha_mode(&self) -> AlphaMode2d {
-        AlphaMode2d::Mask(0.5)
-    }
 }
 
 impl<'a, C: Assetable> AssetBand<'a, C> for AllColorBand where AllColorBand: AssignedBand<'a, C> {
@@ -63,8 +44,8 @@ impl<'a> Assetable for SimpleCard {
 			description: "A normal card".to_owned()
 		}
 	}
-	fn generate_layers(&self, assets: Vec<super::assets::Asset>) -> Vec<Box<dyn std::any::Any>> {
-		let Asset::Texture(img) = assets[0] else {
+	fn generate_layers(&self, mut assets: Vec<Asset>) -> Vec<Box<dyn std::any::Any>> {
+		let Asset::Texture(img) = assets.remove(0) else {
 			return Vec::new();
 		};
 		let Some(c) = self.get_color() else {

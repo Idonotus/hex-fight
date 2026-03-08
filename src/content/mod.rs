@@ -1,8 +1,5 @@
 use std::marker::PhantomData;
 
-
-use bevy::platform::collections::HashSet;
-
 use crate::engine::{
 	cards::{
 		CardValue,
@@ -45,12 +42,6 @@ impl BaseBand for AllColorBand {
 	fn get_band_size(&self) -> u64 {
 		let i: u64 = self.numeral.into();
 		return 0x1000000u64 * i;
-	}
-}
-
-impl<'a> AssignedBand<'a, Box<dyn Stacks + 'a>> for AllColorBand {
-	fn generate_card(&mut self, c_id: u64) -> Box<dyn Stacks + 'a> {
-		return Box::new(self.generate_card(c_id));
 	}
 }
 

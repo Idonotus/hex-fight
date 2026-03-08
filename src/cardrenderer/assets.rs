@@ -18,7 +18,7 @@ pub struct Details {
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum AssetReference {
-	Texture(String),
+	Texture(&'static str),
 }
 
 pub enum Asset {
@@ -55,18 +55,22 @@ where
 }
 
 #[derive(Resource)]
-struct AssetCache {
-	textures: HashMap<String, Handle<Image>>
+pub struct AssetCache {
+	textures: HashMap<&'static str, Handle<Image>>
+}
+
+struct MaterialReference {
+	material_id: u8
 }
 
 impl AssetCache {
-	pub fn new(server: Res<AssetServer>, set: &dyn AssetBand) -> Self {
-		let s = Self {
+	pub fn new<C: Assetable>(server: &AssetServer, set: &dyn AssetBand<C>) -> Self {
+		let mut s = Self {
 			textures: HashMap::new()
 		};
 		for img in set.predict_assets() {
 			match img {
-				AssetReference::Texture(name) => {s.textures[name] = server.load(name + ".png")}
+				AssetReference::Texture(name) => {HashMap::insert(&mut s.textures, name, server.load(name.to_owned() + ".png"));}
 			}
 		}
 		return s;
@@ -75,7 +79,7 @@ impl AssetCache {
 	pub fn get_assets(&self, ref_list: Vec<AssetReference>) -> Vec<Asset> {
 		return ref_list.into_iter().map(|aref| {
 			match aref {
-				AssetReference::Texture(name) => Asset::Texture(self.textures[name])
+				AssetReference::Texture(name) => Asset::Texture(self.textures[name].clone())
 			}
 		}).collect();
 	}

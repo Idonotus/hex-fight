@@ -1,4 +1,3 @@
-use std::io;
 use rand::RngCore;
 
 pub mod cards;
@@ -9,7 +8,6 @@ mod actions;
 use cards::{
     RLEDeck,
     RandomDraw,
-    does_stack,
     BandSet,
     AssignedBand,
 };
@@ -20,11 +18,9 @@ use colors::{
 };
 use scheduler::{
     Scheduler,
-    TurnPhase,
-    ActionQueue
 };
 
-use crate::engine::cards::Stacks;
+use crate::engine::cards::{BaseBand, Stacks};
 
 pub(crate) trait Predicate<T> {
 	fn get_predicate(&self) -> T;
@@ -55,7 +51,7 @@ where
     Card: Stacks,
     Band: AssignedBand<'a, Card>
 {
-    fn new(player_count: usize, rng: Box<dyn RngCore>, card_set: BandSet<'a, Band, Card>) -> Self {
+    pub fn new(player_count: usize, rng: Box<dyn RngCore>, card_set: BandSet<'a, Band, Card>) -> Self {
         let mut players = Vec::new();
 
         for _ in 0..player_count {
@@ -75,7 +71,7 @@ where
         }
     }
 
-    fn deal(&mut self, per_player: u64) {
+    pub fn deal(&mut self, per_player: u64) {
         for _ in 0..per_player {
             for p in &mut self.players {
                 let d= self.deck.as_mut();
@@ -85,11 +81,11 @@ where
         }
     }
 
-    fn get_player(&self, p: usize) -> &Player<Card> {
+    pub fn get_player(&self, p: usize) -> &Player<Card> {
         return &self.players[p]
     }
 
-    fn draw(&mut self, player: usize) -> bool {
+    pub fn draw(&mut self, player: usize) -> bool {
         match self.draw_card() {
             None => {return false;}
             Some(card) => {
@@ -99,18 +95,18 @@ where
         }
     }
 
-    fn play_card(&mut self, player: usize, hand_number: usize) {
+    pub fn play_card(&mut self, player: usize, hand_number: usize) {
         self.top_card = Some(self.players[player].hand.remove(hand_number));
     }
     
-    fn draw_card(&mut self) -> Option<Card> {
+    pub fn draw_card(&mut self) -> Option<Card> {
         match self.deck.draw_card_random(self.rng.as_mut()) {
             Some(identity) => Some(self.card_set.generate_card(identity)),
             None => None
         }
     }
 
-    fn get_valid_stacks_for_player(&self, player: usize, compare: &dyn Fn(&Card, &Card) -> bool) -> Vec<usize> {
+    pub fn get_valid_stacks_for_player(&self, player: usize, compare: &dyn Fn(&Card, &Card) -> bool) -> Vec<usize> {
         let cmp = self.top_card.as_ref().unwrap();
         return Vec::from_iter(self.players[player].hand.iter().enumerate().filter_map(|(idx, card)| {
             if compare(cmp, card) {
@@ -120,62 +116,62 @@ where
         }));
     }
     
-    fn get_current_player(&self) -> &Player<Card> {
+    pub fn get_current_player(&self) -> &Player<Card> {
         self.get_player(self.order.get_turn())
     }
 }
 
-pub fn main() {
-    let mut game = Game::new(2, Box::new(rand::rng()));
+// pub fn main() {
+//     let mut game = Game::new(2, Box::new(rand::rng()));
     
-    game.deal(2026);
-    game.top_card = game.draw_card();
-    loop {
-        let mut phases: ActionQueue = game.order.pop_current_turn();
-        phases.run(TurnPhase::Start);
+//     game.deal(2026);
+//     game.top_card = game.draw_card();
+//     loop {
+//         let mut phases: ActionQueue = game.order.pop_current_turn();
+//         phases.run(TurnPhase::Start);
 
-        println!("Player {}'s turn: they have {} cards", game.order.get_turn() + 1, game.get_current_player().hand.len());
-        let t = game.top_card.as_ref().unwrap().as_ref();
-        println!("The top card is:\n{:?} {:?}\n\n", t.get_color(), t.get_value());
+//         println!("Player {}'s turn: they have {} cards", game.order.get_turn() + 1, game.get_current_player().hand.len());
+//         let t = game.top_card.as_ref().unwrap().as_ref();
+//         println!("The top card is:\n{:?} {:?}\n\n", t.get_color(), t.get_value());
 
-        let opt = game.get_valid_stacks_for_player(game.order.get_turn(), &|base: &Card<'_>, head: &Card<'_>| {
-            does_stack(base, head, &game.comparison)
-        });
+//         let opt = game.get_valid_stacks_for_player(game.order.get_turn(), &|base: &Card<'_>, head: &Card<'_>| {
+//             does_stack(base, head, &game.comparison)
+//         });
 
-        let p = game.get_current_player();
-        for (i, idxcard) in opt.iter().enumerate() {
-            let card = &p.hand[*idxcard];
-            println!("{}: {:?} {:?}", i+1, card.get_color(), card.get_value());
-        }
-        println!("{}: Draw a card", opt.len() + 1);
-        let mut imput = String::new();
-        io::stdin()
-        .read_line(&mut imput)
-        .expect("Failed to read line");
+//         let p = game.get_current_player();
+//         for (i, idxcard) in opt.iter().enumerate() {
+//             let card = &p.hand[*idxcard];
+//             println!("{}: {:?} {:?}", i+1, card.get_color(), card.get_value());
+//         }
+//         println!("{}: Draw a card", opt.len() + 1);
+//         let mut imput = String::new();
+//         io::stdin()
+//         .read_line(&mut imput)
+//         .expect("Failed to read line");
         
-        let index_input: usize = match imput.trim().parse::<usize>() {
-            Ok(n) => n - 1,
-            Err(_) => continue,
-        };
+//         let index_input: usize = match imput.trim().parse::<usize>() {
+//             Ok(n) => n - 1,
+//             Err(_) => continue,
+//         };
 
-        if index_input == opt.len() {
-            if !game.draw(game.order.get_turn()) {
-                break;
-            }
-            phases.run(TurnPhase::Play);
-        } else if index_input > opt.len() {
-            println!("Enter a valid action!!!");
-            continue;
-        } else {
-            game.play_card(game.order.get_turn(), opt[index_input]);
-            phases.run(TurnPhase::Play);
-        }
+//         if index_input == opt.len() {
+//             if !game.draw(game.order.get_turn()) {
+//                 break;
+//             }
+//             phases.run(TurnPhase::Play);
+//         } else if index_input > opt.len() {
+//             println!("Enter a valid action!!!");
+//             continue;
+//         } else {
+//             game.play_card(game.order.get_turn(), opt[index_input]);
+//             phases.run(TurnPhase::Play);
+//         }
 
-        if game.get_player(game.order.get_turn()).hand.len() == 0 {
-            break;
-        }
+//         if game.get_player(game.order.get_turn()).hand.len() == 0 {
+//             break;
+//         }
         
-        game.order.tick();
-        phases.run(TurnPhase::End);
-    }
-}
+//         game.order.tick();
+//         phases.run(TurnPhase::End);
+//     }
+// }

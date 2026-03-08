@@ -1,4 +1,6 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, sprite_render::Material2dPlugin};
+
+use crate::cardrenderer::materials::RecolourMaterial;
 
 mod resizeplugin;
 mod engine;
@@ -8,8 +10,12 @@ mod cardrenderer;
 
 fn main() {
     App::new()
-    .add_plugins(DefaultPlugins)
-    .add_plugins(resizeplugin::ResizePlugin)
+    .add_plugins((
+        DefaultPlugins,
+        Material2dPlugin::<RecolourMaterial>::default(),
+        resizeplugin::ResizePlugin,
+        orchestrator::GamePlugin
+    ))
     .add_systems(Startup, (setup, setup_ui))
     .run();
 }
