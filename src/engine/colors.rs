@@ -3,7 +3,7 @@ use std::{
 	fmt::Display
 };
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug, Eq, Hash)]
 pub(crate) struct Color {
 	pub r: u8,
 	pub g: u8,
