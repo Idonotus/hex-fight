@@ -33,8 +33,10 @@ struct RecolourMaterial {
     #[texture(2)]
     #[sampler(3)]
     palette: Option<Handle<Image>>,
-    #[uniform(5)]
+    #[uniform(4)]
     offset: f32,
+    #[uniform(5)]
+    cap: f32,
 }
 
 impl Material2d for RecolourMaterial {
@@ -87,7 +89,7 @@ impl Assetable for SimpleCard {
         let Asset::Texture(img) = assets.remove(0) else {
             return;
         };
-        let Asset::Palette(palette, offset) = assets.remove(0) else {
+        let Asset::Palette(palette, offset, cap) = assets.remove(0) else {
             return;
         };
 
@@ -99,6 +101,7 @@ impl Assetable for SimpleCard {
             palette: Some(palette),
             texture: Some(img),
             offset: offset as f32,
+            cap: cap as f32,
         }));
         let e = commands.spawn((mat, mesh)).id();
         commands.entity(base_entity).add_child(e);

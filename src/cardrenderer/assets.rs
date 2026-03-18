@@ -22,7 +22,7 @@ pub enum AssetReference {
 
 pub enum Asset {
     Texture(Handle<Image>),
-    Palette(Handle<Image>, PaletteReference),
+    Palette(Handle<Image>, PaletteReference, PaletteReference),
 }
 
 type PaletteReference = usize;
@@ -36,6 +36,7 @@ pub trait PaletteAtlas {
     fn push_data(&mut self, image: &mut Image, data: Vec<u8>) -> PaletteReference;
     fn new_reference(&mut self) -> PaletteReference;
     fn get_image(&self) -> Handle<Image>;
+    fn get_size(&self) -> PaletteReference;
 }
 
 pub trait Assetable {
@@ -92,24 +93,26 @@ where
 pub struct BasePalette {
     img: Handle<Image>,
     allocated: usize,
+    size: usize,
 }
 
 impl BasePalette {
-    fn new(img: Handle<Image>) -> Self {
+    fn new(img: Handle<Image>, size: usize) -> Self {
         Self {
             allocated: 0usize,
             img,
+            size,
         }
     }
-    fn gen_image(size: u32) -> Image {
+    fn gen_image(size: usize) -> Image {
         Image::new(
             Extent3d {
-                width: size,
+                width: size as u32,
                 height: 1,
                 ..Default::default()
             },
             TextureDimension::D2,
-            vec![0; (size * 4).try_into().unwrap()],
+            vec![0; size * 4],
             bevy::render::render_resource::TextureFormat::Rgba8Uint,
             RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
         )
@@ -134,6 +137,10 @@ impl PaletteAtlas for BasePalette {
 
     fn new_reference(&mut self) -> PaletteReference {
         return self.allocated as PaletteReference;
+    }
+
+    fn get_size(&self) -> PaletteReference {
+        return self.size;
     }
 }
 
@@ -169,7 +176,9 @@ impl AssetCache {
             .into_iter()
             .map(|aref| match aref {
                 AssetReference::Texture(name) => Asset::Texture(self.textures[name].clone()),
-                AssetReference::Palette(r) => Asset::Palette(self.palette.get_image(), r),
+                AssetReference::Palette(r) => {
+                    Asset::Palette(self.palette.get_image(), r, self.palette.get_size())
+                }
             })
             .collect();
     }
