@@ -13,4 +13,4 @@ features = ["full"]
 [dependencies.bevy]
 version = "0.18"
 default-features = false
-features = ["2d"]
+features = ["2d", "file_watcher"]

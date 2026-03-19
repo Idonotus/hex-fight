@@ -1,4 +1,4 @@
-use bevy::{prelude::*, sprite_render::Material2dPlugin};
+use bevy::prelude::*;
 
 mod cardrenderer;
 mod content;

@@ -32,7 +32,7 @@ struct RecolourMaterial {
     #[texture(0)]
     #[sampler(1)]
     texture: Option<Handle<Image>>,
-    #[texture(2)]
+    #[texture(2, dimension = "1d")]
     #[sampler(3)]
     palette: Option<Handle<Image>>,
     #[uniform(4)]

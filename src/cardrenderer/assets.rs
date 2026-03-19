@@ -90,10 +90,9 @@ impl BasePalette {
         Image::new(
             Extent3d {
                 width: size as u32,
-                height: 1,
                 ..Default::default()
             },
-            TextureDimension::D2,
+            TextureDimension::D1,
             vec![0; size * 4],
             bevy::render::render_resource::TextureFormat::Rgba8Unorm,
             RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
@@ -110,7 +109,14 @@ impl PaletteAtlas for BasePalette {
         self.allocated += size;
 
         image_data.splice(initial_ref..self.allocated, data);
-        return self.allocated as PaletteReference;
+        println!(
+            "{:?}",
+            image_data[initial_ref..self.allocated]
+                .iter()
+                .map(|u| *u)
+                .collect::<Vec<u8>>()
+        );
+        return self.allocated as PaletteReference / 4;
     }
 
     fn get_image(&self) -> Handle<Image> {
