@@ -8,7 +8,9 @@ mod defcolors {
 use defcolors::*;
 
 #[rustfmt::skip()]
-use super::assets::{Asset, AssetBand, AssetReference, Assetable, Details, MaterialCache, RGBA};
+use super::assets::{
+    Asset, AssetReference, Assetable, AssetableGroup, Details, MaterialCache, RGBA,
+};
 
 use crate::cardrenderer::assets::RequestContext;
 use crate::content::*;
@@ -45,7 +47,7 @@ impl Material2d for RecolourMaterial {
     }
 
     fn alpha_mode(&self) -> AlphaMode2d {
-        AlphaMode2d::Mask(0.5)
+        AlphaMode2d::Blend
     }
 }
 
@@ -56,11 +58,17 @@ impl Into<RGBA> for CardColor {
         return [self.r, self.g, self.b, 255];
     }
 }
+impl AssetableGroup for AllColorPlugin {
+    fn predict_assets(&self) -> HashSet<AssetReference> {
+        HashSet::from_iter(vec![AssetReference::Texture(CARD_BASE)])
+    }
 
-impl<'a, C: Assetable> AssetBand<'a, C> for AllColorBand
-where
-    AllColorBand: AssignedBand<'a, C>,
-{
+    fn predict_material(&self, cache: &mut MaterialCache) -> () {
+        cache.add_mat::<RecolourMaterial>();
+    }
+}
+
+impl AssetableGroup for AllColorBand {
     fn predict_assets(&self) -> HashSet<AssetReference> {
         HashSet::from_iter(vec![AssetReference::Texture(CARD_BASE)])
     }
@@ -78,10 +86,13 @@ impl Assetable for SimpleCard {
         }
     }
 
+    fn get_asset_count(&self) -> usize {
+        2
+    }
+
     fn generate_layers(
         &self,
         world: &mut World,
-        commands: &mut Commands,
         card_size: Rectangle,
         base_entity: Entity,
         mut assets: Vec<Asset>,
@@ -103,6 +114,7 @@ impl Assetable for SimpleCard {
             offset: offset as f32,
             cap: cap as f32,
         }));
+        let mut commands = world.commands();
         let e = commands.spawn((mat, mesh)).id();
         commands.entity(base_entity).add_child(e);
     }
@@ -122,7 +134,9 @@ impl Assetable for SimpleCard {
     }
 }
 
-impl<'a, Band: AssetBand<'a, C>, C: Assetable> AssetBand<'a, C> for PluralBand<'a, Band, C> {
+impl<'a, Band: AssignedBand<'a, C> + AssetableGroup, C: Assetable> AssetableGroup
+    for PluralBand<'a, Band, C>
+{
     fn predict_assets(&self) -> bevy::platform::collections::HashSet<AssetReference> {
         self.0.predict_assets()
     }

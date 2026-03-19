@@ -44,40 +44,22 @@ pub trait Assetable {
     fn generate_layers(
         &self,
         world: &mut World,
-        commands: &mut Commands,
         card_size: Rectangle,
         base_entity: Entity,
         assets: Vec<Asset>,
     ) -> ();
     fn request_assets<'a>(&self, context: RequestContext<'a>) -> RequestContext<'a>;
+    fn get_asset_count(&self) -> usize;
 }
 
-pub trait AssetBand<'a, C>: AssignedBand<'a, C>
-where
-    C: Assetable,
-{
+pub trait AssetableGroup {
     fn predict_assets(&self) -> HashSet<AssetReference>;
     fn predict_material(&self, cache: &mut MaterialCache) -> ();
 }
 
-impl<'a, C> AssetBand<'a, C> for Box<dyn AssetBand<'a, C> + 'a>
+impl<'a, Band, C> AssetableGroup for BandSet<'a, Band, C>
 where
-    C: Assetable,
-    Box<dyn AssetBand<'a, C> + 'a>: AssetBand<'a, C>,
-{
-    fn predict_assets(&self) -> HashSet<AssetReference> {
-        self.as_ref().predict_assets()
-    }
-
-    fn predict_material(&self, cache: &mut MaterialCache) -> () {
-        self.as_ref().predict_material(cache)
-    }
-}
-
-impl<'a, Band, C> AssetBand<'a, C> for BandSet<'a, Band, C>
-where
-    C: Assetable,
-    Band: AssetBand<'a, C>,
+    Band: AssetableGroup + AssignedBand<'a, C>,
 {
     fn predict_assets(&self) -> HashSet<AssetReference> {
         HashSet::from_iter(self.iter().flat_map(|a| a.predict_assets()))
@@ -97,14 +79,14 @@ pub struct BasePalette {
 }
 
 impl BasePalette {
-    fn new(img: Handle<Image>, size: usize) -> Self {
+    pub fn new(img: Handle<Image>, size: usize) -> Self {
         Self {
             allocated: 0usize,
             img,
             size,
         }
     }
-    fn gen_image(size: usize) -> Image {
+    pub fn gen_image(size: usize) -> Image {
         Image::new(
             Extent3d {
                 width: size as u32,
@@ -113,7 +95,7 @@ impl BasePalette {
             },
             TextureDimension::D2,
             vec![0; size * 4],
-            bevy::render::render_resource::TextureFormat::Rgba8Uint,
+            bevy::render::render_resource::TextureFormat::Rgba8Unorm,
             RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
         )
     }
@@ -146,14 +128,14 @@ impl PaletteAtlas for BasePalette {
 
 #[derive(Resource)]
 pub struct AssetCache {
-    textures: HashMap<&'static str, Handle<Image>>,
-    palette: BasePalette,
+    pub textures: HashMap<&'static str, Handle<Image>>,
+    pub palette: BasePalette,
 }
 
 impl AssetCache {
     pub fn new<C: Assetable>(
         server: &AssetServer,
-        set: &dyn AssetBand<C>,
+        set: &dyn AssetableGroup,
         palette: BasePalette,
     ) -> Self {
         let mut s: AssetCache = Self {
@@ -190,6 +172,13 @@ pub struct MaterialCache<'a> {
 }
 
 impl<'a> MaterialCache<'a> {
+    pub fn new(app: &'a mut App) -> Self {
+        Self {
+            app,
+            materials: Vec::new(),
+        }
+    }
+
     pub fn add_mat<T>(&mut self) -> ()
     where
         T: Material2d,
@@ -210,15 +199,10 @@ pub struct RequestContext<'a> {
 }
 
 impl<'a> RequestContext<'a> {
-    pub fn new(
-        palettes: &'a mut dyn PaletteAtlas,
-        asset_count: usize,
-        images: ResMut<'a, Assets<Image>>,
-    ) -> Self {
-        let references: Vec<Option<AssetReference>> = (0..asset_count).map(|_| None).collect();
+    pub fn new(palettes: &'a mut dyn PaletteAtlas, images: ResMut<'a, Assets<Image>>) -> Self {
         Self {
             palettes,
-            references,
+            references: Vec::new(),
             images,
         }
     }
@@ -238,5 +222,15 @@ impl<'a> RequestContext<'a> {
         let mut r = Vec::new();
         mem::swap(&mut r, &mut self.references);
         return r;
+    }
+
+    pub fn fill(&mut self, size: usize) -> Result<(), &'static str> {
+        if self.references.len() > 0 {
+            return Err("Context is not empty");
+        }
+        for _ in 0..size {
+            self.references.push(None)
+        }
+        return Ok(());
     }
 }
