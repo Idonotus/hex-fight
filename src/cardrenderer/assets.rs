@@ -1,8 +1,9 @@
 use bevy::{
     asset::RenderAssetUsages,
+    image::ImageFilterMode,
     platform::collections::{HashMap, HashSet},
     prelude::*,
-    render::render_resource::{Extent3d, TextureDimension},
+    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
     sprite_render::{Material2d, Material2dPlugin},
 };
 use std::{any::TypeId, mem};
@@ -14,12 +15,17 @@ pub struct Details {
     pub description: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum AssetReference {
     Texture(&'static str),
     Palette(PaletteReference),
 }
 
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord)]
+pub enum AssetPreload {
+    Texture(&'static str, TextureFormat),
+}
+
+#[derive(Debug)]
 pub enum Asset {
     Texture(Handle<Image>),
     Palette(Handle<Image>, PaletteReference, PaletteReference),
@@ -53,7 +59,7 @@ pub trait Assetable {
 }
 
 pub trait AssetableGroup {
-    fn predict_assets(&self) -> HashSet<AssetReference>;
+    fn predict_assets(&self) -> HashSet<AssetPreload>;
     fn predict_material(&self, cache: &mut MaterialCache) -> ();
 }
 
@@ -87,7 +93,7 @@ impl BasePalette {
         }
     }
     pub fn gen_image(size: usize) -> Image {
-        Image::new(
+        let mut i = Image::new(
             Extent3d {
                 width: size as u32,
                 ..Default::default()
@@ -96,7 +102,13 @@ impl BasePalette {
             vec![0; size * 4],
             bevy::render::render_resource::TextureFormat::Rgba8Unorm,
             RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
-        )
+        );
+        i.sampler = bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
+            min_filter: ImageFilterMode::Linear,
+            mag_filter: ImageFilterMode::Nearest,
+            ..default()
+        });
+        return i;
     }
 }
 
@@ -109,13 +121,6 @@ impl PaletteAtlas for BasePalette {
         self.allocated += size;
 
         image_data.splice(initial_ref..self.allocated, data);
-        println!(
-            "{:?}",
-            image_data[initial_ref..self.allocated]
-                .iter()
-                .map(|u| *u)
-                .collect::<Vec<u8>>()
-        );
         return self.allocated as PaletteReference / 4;
     }
 
@@ -141,6 +146,7 @@ pub struct AssetCache {
 impl AssetCache {
     pub fn new<C: Assetable>(
         server: &AssetServer,
+
         set: &dyn AssetableGroup,
         palette: BasePalette,
     ) -> Self {
@@ -150,10 +156,9 @@ impl AssetCache {
         };
         for img in set.predict_assets() {
             match img {
-                AssetReference::Texture(name) => {
+                AssetPreload::Texture(name) => {
                     HashMap::insert(&mut s.textures, name, server.load(name.to_owned() + ".png"));
                 }
-                AssetReference::Palette(_) => panic!("Cannot predict palette from band."),
             }
         }
         return s;

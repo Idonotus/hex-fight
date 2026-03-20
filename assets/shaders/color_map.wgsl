@@ -16,11 +16,10 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
 		return vec4<f32>(0.0,0.0,0.0,0.0);
 	}
 
-	if pixel.r == base.r {
-		return vec4<f32>(0.0,0.0,0.0,1.0);
+	if pixel.r == 1/255 {
+		return textureSample(palette_texture, palette_sampler, (offset + 0.5)/cap);
 	} else {
-		return vec4<f32>(pixel.r*256.0,0.0,0.0,1.0);
+		return textureSample(palette_texture, palette_sampler, (offset + 1.5)/cap);
 	}
-	// var coord = vec2<f32>(0.0, (pixel[0] * 256));
-	// return vec4f(coord[0], coord[1], pixel[1], 1.0);
+	// return textureSample(palette_texture, palette_sampler, (pixel.r * 100 + offset + 0.5)/cap);
 }
