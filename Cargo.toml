@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 rand = "0.9.2"
+dyn-clone = "1.0.20"
 
 [dependencies.enum_dict]
 version = "0.7"
@@ -13,4 +14,4 @@ features = ["full"]
 [dependencies.bevy]
 version = "0.18"
 default-features = false
-features = ["2d"]
+features = ["2d", "file_watcher"]

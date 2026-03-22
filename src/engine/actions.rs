@@ -1,9 +1,8 @@
 use std::mem::{ replace };
-use crate::engine::colors::Color;
-
-trait Predicate<T> {
-	fn get_predicate(&self) -> T;
-}
+use crate::engine::{
+	colors::Color,
+	Predicate
+};
 
 pub enum ContextItem {
 	Player(usize),
@@ -95,7 +94,6 @@ pub enum ContextPredicate {
 	Decimal,
 //	Card,
 //	Game,
-
 }
 
 fn predicate_legal(a: &[ContextPredicate], b: &[ContextPredicate]) -> bool {
