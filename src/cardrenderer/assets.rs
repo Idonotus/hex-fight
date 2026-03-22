@@ -1,11 +1,15 @@
 use bevy::{
-    asset::RenderAssetUsages,
+    asset::{
+        RenderAssetUsages,
+        LoadState
+    },
+    image::ImageFilterMode,
     platform::collections::{HashMap, HashSet},
     prelude::*,
-    render::render_resource::{Extent3d, TextureDimension},
+    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
     sprite_render::{Material2d, Material2dPlugin},
 };
-use std::{any::TypeId, mem};
+use std::{any::TypeId, mem::{self, swap}};
 
 use crate::engine::cards::{AssignedBand, BandSet};
 
@@ -14,12 +18,30 @@ pub struct Details {
     pub description: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum AssetReference {
     Texture(&'static str),
     Palette(PaletteReference),
 }
 
+#[derive(Hash, PartialEq, Eq)]
+pub struct DescriptorOverride {
+    pub format: Option<TextureFormat>,
+}
+
+impl DescriptorOverride {
+    fn apply_override(self, image: &mut Image) {
+        if let Some(format) = self.format {
+            image.texture_descriptor.format = format;
+        }
+    }
+}
+
+#[derive(Hash, Eq, PartialEq)]
+pub enum AssetPreload {
+    Texture(&'static str, DescriptorOverride),
+}
+
+#[derive(Debug)]
 pub enum Asset {
     Texture(Handle<Image>),
     Palette(Handle<Image>, PaletteReference, PaletteReference),
@@ -53,7 +75,7 @@ pub trait Assetable {
 }
 
 pub trait AssetableGroup {
-    fn predict_assets(&self) -> HashSet<AssetReference>;
+    fn predict_assets(&self) -> HashSet<AssetPreload>;
     fn predict_material(&self, cache: &mut MaterialCache) -> ();
 }
 
@@ -61,7 +83,7 @@ impl<'a, Band, C> AssetableGroup for BandSet<'a, Band, C>
 where
     Band: AssetableGroup + AssignedBand<'a, C>,
 {
-    fn predict_assets(&self) -> HashSet<AssetReference> {
+    fn predict_assets(&self) -> HashSet<AssetPreload> {
         HashSet::from_iter(self.iter().flat_map(|a| a.predict_assets()))
     }
 
@@ -87,7 +109,7 @@ impl BasePalette {
         }
     }
     pub fn gen_image(size: usize) -> Image {
-        Image::new(
+        let mut i = Image::new(
             Extent3d {
                 width: size as u32,
                 ..Default::default()
@@ -96,7 +118,13 @@ impl BasePalette {
             vec![0; size * 4],
             bevy::render::render_resource::TextureFormat::Rgba8Unorm,
             RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
-        )
+        );
+        i.sampler = bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
+            min_filter: ImageFilterMode::Linear,
+            mag_filter: ImageFilterMode::Nearest,
+            ..default()
+        });
+        return i;
     }
 }
 
@@ -109,13 +137,6 @@ impl PaletteAtlas for BasePalette {
         self.allocated += size;
 
         image_data.splice(initial_ref..self.allocated, data);
-        println!(
-            "{:?}",
-            image_data[initial_ref..self.allocated]
-                .iter()
-                .map(|u| *u)
-                .collect::<Vec<u8>>()
-        );
         return self.allocated as PaletteReference / 4;
     }
 
@@ -136,24 +157,28 @@ impl PaletteAtlas for BasePalette {
 pub struct AssetCache {
     pub textures: HashMap<&'static str, Handle<Image>>,
     pub palette: BasePalette,
+    image_queue: Vec<(Handle<Image>, DescriptorOverride)>,
 }
 
 impl AssetCache {
     pub fn new<C: Assetable>(
         server: &AssetServer,
+
         set: &dyn AssetableGroup,
         palette: BasePalette,
     ) -> Self {
         let mut s: AssetCache = Self {
             textures: HashMap::new(),
             palette,
+            image_queue: Vec::new(),
         };
         for img in set.predict_assets() {
             match img {
-                AssetReference::Texture(name) => {
-                    HashMap::insert(&mut s.textures, name, server.load(name.to_owned() + ".png"));
+                AssetPreload::Texture(name, overrides) => {
+                    let handle = server.load(name.to_owned() + ".png");
+                    HashMap::insert(&mut s.textures, name, handle.clone());
+                    s.image_queue.push((handle, overrides));
                 }
-                AssetReference::Palette(_) => panic!("Cannot predict palette from band."),
             }
         }
         return s;
@@ -169,6 +194,22 @@ impl AssetCache {
                 }
             })
             .collect();
+    }
+
+    pub fn loading(&mut self, server: Res<AssetServer>, mut images: ResMut<Assets<Image>>) -> bool {
+        let mut newqueue = Vec::new();
+        swap(&mut newqueue, &mut self.image_queue);
+        for (h, o) in newqueue.drain(..) {
+            match server.get_load_state(&h).unwrap() {
+                LoadState::NotLoaded | LoadState::Loading => {self.image_queue.push((h, o));},
+                LoadState::Failed(_) => {},
+                LoadState::Loaded => {
+                    o.apply_override(images.get_mut(&h).unwrap());
+                }
+            }
+        }
+
+        return self.image_queue.len() == 0
     }
 }
 

@@ -1,39 +1,28 @@
 use rand::RngCore;
 
+mod actions;
 pub mod cards;
 pub mod colors;
 mod scheduler;
-mod actions;
 
-use cards::{
-    RLEDeck,
-    RandomDraw,
-    BandSet,
-    AssignedBand,
-};
-use colors::{
-    ColorComparison,
-    build_dist_tolerance_eq,
-    taxicab
-};
-use scheduler::{
-    Scheduler,
-};
+use cards::{AssignedBand, BandSet, RLEDeck, RandomDraw};
+use colors::{ColorComparison, build_dist_tolerance_eq, taxicab};
+use scheduler::Scheduler;
 
 use crate::engine::cards::{BaseBand, Stacks};
 
 pub(crate) trait Predicate<T> {
-	fn get_predicate(&self) -> T;
+    fn get_predicate(&self) -> T;
 }
 
-struct Player<Card> {
-    hand: Vec<Card>
+pub struct Player<Card> {
+    pub hand: Vec<Card>,
 }
 
-pub struct Game<'a, Band, Card> 
+pub struct Game<'a, Band, Card>
 where
     Card: Stacks,
-    Band: AssignedBand<'a, Card>
+    Band: AssignedBand<'a, Card>,
 {
     deck: Box<dyn RandomDraw>,
     rng: Box<dyn RngCore>,
@@ -49,15 +38,17 @@ where
 impl<'a, Band, Card> Game<'a, Band, Card>
 where
     Card: Stacks,
-    Band: AssignedBand<'a, Card>
+    Band: AssignedBand<'a, Card>,
 {
-    pub fn new(player_count: usize, rng: Box<dyn RngCore>, card_set: BandSet<'a, Band, Card>) -> Self {
+    pub fn new(
+        player_count: usize,
+        rng: Box<dyn RngCore>,
+        card_set: BandSet<'a, Band, Card>,
+    ) -> Self {
         let mut players = Vec::new();
 
         for _ in 0..player_count {
-            players.push(
-                Player { hand: Vec::new() }
-            );
+            players.push(Player { hand: Vec::new() });
         }
 
         Self {
@@ -74,7 +65,7 @@ where
     pub fn deal(&mut self, per_player: u64) {
         for _ in 0..per_player {
             for p in &mut self.players {
-                let d= self.deck.as_mut();
+                let d = self.deck.as_mut();
                 let card = d.draw_card_random(self.rng.as_mut()).unwrap();
                 p.hand.push(self.card_set.generate_card(card));
             }
@@ -82,12 +73,14 @@ where
     }
 
     pub fn get_player(&self, p: usize) -> &Player<Card> {
-        return &self.players[p]
+        return &self.players[p];
     }
 
     pub fn draw(&mut self, player: usize) -> bool {
         match self.draw_card() {
-            None => {return false;}
+            None => {
+                return false;
+            }
             Some(card) => {
                 self.players[player].hand.push(card);
                 return true;
@@ -98,24 +91,30 @@ where
     pub fn play_card(&mut self, player: usize, hand_number: usize) {
         self.top_card = Some(self.players[player].hand.remove(hand_number));
     }
-    
+
     pub fn draw_card(&mut self) -> Option<Card> {
         match self.deck.draw_card_random(self.rng.as_mut()) {
             Some(identity) => Some(self.card_set.generate_card(identity)),
-            None => None
+            None => None,
         }
     }
 
-    pub fn get_valid_stacks_for_player(&self, player: usize, compare: &dyn Fn(&Card, &Card) -> bool) -> Vec<usize> {
+    pub fn get_valid_stacks_for_player(
+        &self,
+        player: usize,
+        compare: &dyn Fn(&Card, &Card) -> bool,
+    ) -> Vec<usize> {
         let cmp = self.top_card.as_ref().unwrap();
-        return Vec::from_iter(self.players[player].hand.iter().enumerate().filter_map(|(idx, card)| {
-            if compare(cmp, card) {
-                return Some(idx)
-            }
-            return None
-        }));
+        return Vec::from_iter(self.players[player].hand.iter().enumerate().filter_map(
+            |(idx, card)| {
+                if compare(cmp, card) {
+                    return Some(idx);
+                }
+                return None;
+            },
+        ));
     }
-    
+
     pub fn get_current_player(&self) -> &Player<Card> {
         self.get_player(self.order.get_turn())
     }
@@ -123,7 +122,7 @@ where
 
 // pub fn main() {
 //     let mut game = Game::new(2, Box::new(rand::rng()));
-    
+
 //     game.deal(2026);
 //     game.top_card = game.draw_card();
 //     loop {
@@ -148,7 +147,7 @@ where
 //         io::stdin()
 //         .read_line(&mut imput)
 //         .expect("Failed to read line");
-        
+
 //         let index_input: usize = match imput.trim().parse::<usize>() {
 //             Ok(n) => n - 1,
 //             Err(_) => continue,
@@ -170,7 +169,7 @@ where
 //         if game.get_player(game.order.get_turn()).hand.len() == 0 {
 //             break;
 //         }
-        
+
 //         game.order.tick();
 //         phases.run(TurnPhase::End);
 //     }

@@ -9,10 +9,10 @@ use defcolors::*;
 
 #[rustfmt::skip()]
 use super::assets::{
-    Asset, AssetReference, Assetable, AssetableGroup, Details, MaterialCache, RGBA,
+    Asset, AssetPreload, Assetable, AssetableGroup, DescriptorOverride, Details, MaterialCache,
+    RGBA, RequestContext,
 };
 
-use crate::cardrenderer::assets::RequestContext;
 use crate::content::*;
 use crate::engine::{
     cards::{AssignedBand, Stacks},
@@ -23,22 +23,23 @@ use bevy::{
     platform::collections::HashSet,
     prelude::*,
     render::render_resource::AsBindGroup,
+    render::render_resource::TextureFormat,
     shader::ShaderRef,
     sprite_render::{AlphaMode2d, Material2d},
 };
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 struct RecolourMaterial {
-    #[texture(0)]
-    #[sampler(1)]
+    #[texture(0, dimension = "2d", sample_type = "u_int")]
     texture: Option<Handle<Image>>,
+    #[uniform(1)]
+    size: UVec2,
     #[texture(2, dimension = "1d")]
-    #[sampler(3)]
     palette: Option<Handle<Image>>,
+    #[uniform(3)]
+    offset: u32,
     #[uniform(4)]
-    offset: f32,
-    #[uniform(5)]
-    cap: f32,
+    cap: u32,
 }
 
 impl Material2d for RecolourMaterial {
@@ -52,6 +53,7 @@ impl Material2d for RecolourMaterial {
 }
 
 const CARD_BASE: &'static str = "card-base";
+const APLUGIN: AllColorPlugin = AllColorPlugin {};
 
 impl Into<RGBA> for CardColor {
     fn into(self) -> RGBA {
@@ -59,8 +61,13 @@ impl Into<RGBA> for CardColor {
     }
 }
 impl AssetableGroup for AllColorPlugin {
-    fn predict_assets(&self) -> HashSet<AssetReference> {
-        HashSet::from_iter(vec![AssetReference::Texture(CARD_BASE)])
+    fn predict_assets(&self) -> HashSet<AssetPreload> {
+        HashSet::from_iter(vec![AssetPreload::Texture(
+            CARD_BASE,
+            DescriptorOverride {
+                format: Some(TextureFormat::Rgba8Uint),
+            },
+        )])
     }
 
     fn predict_material(&self, cache: &mut MaterialCache) -> () {
@@ -69,12 +76,12 @@ impl AssetableGroup for AllColorPlugin {
 }
 
 impl AssetableGroup for AllColorBand {
-    fn predict_assets(&self) -> HashSet<AssetReference> {
-        HashSet::from_iter(vec![AssetReference::Texture(CARD_BASE)])
+    fn predict_assets(&self) -> HashSet<AssetPreload> {
+        APLUGIN.predict_assets()
     }
 
     fn predict_material(&self, cache: &mut MaterialCache) -> () {
-        cache.add_mat::<RecolourMaterial>();
+        APLUGIN.predict_material(cache);
     }
 }
 
@@ -104,6 +111,9 @@ impl Assetable for SimpleCard {
             return;
         };
 
+        let images = world.resource::<Assets<Image>>();
+        let size = images.get(&img).unwrap().size();
+
         let mut meshes = world.resource_mut::<Assets<Mesh>>();
         let mesh = Mesh2d(meshes.add(card_size));
 
@@ -111,8 +121,9 @@ impl Assetable for SimpleCard {
         let mat = MeshMaterial2d(materials.add(RecolourMaterial {
             palette: Some(palette),
             texture: Some(img),
-            offset: offset as f32,
-            cap: cap as f32,
+            offset: offset as u32,
+            cap: cap as u32,
+            size,
         }));
         let mut commands = world.commands();
         let e = commands.spawn((mat, mesh)).id();
@@ -137,7 +148,7 @@ impl Assetable for SimpleCard {
 impl<'a, Band: AssignedBand<'a, C> + AssetableGroup, C: Assetable> AssetableGroup
     for PluralBand<'a, Band, C>
 {
-    fn predict_assets(&self) -> bevy::platform::collections::HashSet<AssetReference> {
+    fn predict_assets(&self) -> bevy::platform::collections::HashSet<AssetPreload> {
         self.0.predict_assets()
     }
 

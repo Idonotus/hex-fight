@@ -43,6 +43,7 @@ impl BaseBand for AllColorBand {
     }
 }
 
+#[derive(Clone)]
 pub struct SimpleCard {
     color: Color,
     value: CardValue,
