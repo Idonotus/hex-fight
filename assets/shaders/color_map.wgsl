@@ -16,5 +16,5 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
 		return vec4<f32>(0.0,0.0,0.0,0.0);
 	}
 
-	return textureLoad(palette_texture, i32(pixel.r + offset), 0);
+	return textureLoad(palette_texture, i32(pixel.r + pixel.g * 255 + offset), 0);
 }
