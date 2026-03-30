@@ -1,29 +1,29 @@
 #[rustfmt::skip()]
 mod defcolors {
-    use super::super::assets::RGBA;
+    use crate::assets::palette::RGBA;
     pub const WHITE: RGBA = [255, 255, 255, 255];
     pub const BLACK: RGBA = [0, 0, 0, 255];
 }
 
 use defcolors::*;
 
-#[rustfmt::skip()]
-use super::assets::{
-    Asset, AssetPreload, Assetable, AssetableGroup, DescriptorOverride, Details, MaterialCache,
-    RGBA, RequestContext,
-};
+use super::basic_cards::{AllColorBand, AllColorPlugin, PluralBand, SimpleCard};
 
-use crate::content::*;
-use crate::engine::{
-    cards::{AssignedBand, Stacks},
-    colors::Color as CardColor,
+use crate::{
+    assets::{
+        cache::{Asset, MaterialCache},
+        cardrender::{Assetable, AssetableGroup, Details, RequestContext},
+        palette::RGBA,
+    },
+    engine::{
+        cards::{AssignedBand, CardValue, Stacks},
+        colors::Color as CardColor,
+    },
 };
 
 use bevy::{
-    platform::collections::HashSet,
     prelude::*,
     render::render_resource::AsBindGroup,
-    render::render_resource::TextureFormat,
     shader::ShaderRef,
     sprite_render::{AlphaMode2d, Material2d},
 };
@@ -52,7 +52,8 @@ impl Material2d for RecolourMaterial {
     }
 }
 
-const CARD_BASE: &'static str = "card-base";
+static CARD_BASE: &str = "card-base";
+static CARD_FACE: &str = "face_";
 const APLUGIN: AllColorPlugin = AllColorPlugin {};
 
 impl Into<RGBA> for CardColor {
@@ -61,13 +62,8 @@ impl Into<RGBA> for CardColor {
     }
 }
 impl AssetableGroup for AllColorPlugin {
-    fn predict_assets(&self) -> HashSet<AssetPreload> {
-        HashSet::from_iter(vec![AssetPreload::Texture(
-            CARD_BASE,
-            DescriptorOverride {
-                format: Some(TextureFormat::Rgba8Uint),
-            },
-        )])
+    fn predict_assets(&self) -> Vec<String> {
+        vec![CARD_BASE.to_owned(), "card-face-atlas".to_owned()]
     }
 
     fn predict_material(&self, cache: &mut MaterialCache) -> () {
@@ -76,7 +72,7 @@ impl AssetableGroup for AllColorPlugin {
 }
 
 impl AssetableGroup for AllColorBand {
-    fn predict_assets(&self) -> HashSet<AssetPreload> {
+    fn predict_assets(&self) -> Vec<String> {
         APLUGIN.predict_assets()
     }
 
@@ -86,7 +82,7 @@ impl AssetableGroup for AllColorBand {
 }
 
 impl Assetable for SimpleCard {
-    fn get_details(&self) -> super::assets::Details {
+    fn get_details(&self) -> Details {
         Details {
             name: format!("{:?} of {}", self.get_value(), self.get_color().unwrap()),
             description: "A normal card".to_owned(),
@@ -94,7 +90,7 @@ impl Assetable for SimpleCard {
     }
 
     fn get_asset_count(&self) -> usize {
-        2
+        3
     }
 
     fn generate_layers(
@@ -126,12 +122,33 @@ impl Assetable for SimpleCard {
             size,
         }));
         let mut commands = world.commands();
-        let e = commands.spawn((mat, mesh)).id();
+        let mut e = commands.spawn((mat, mesh)).id();
+        commands.entity(base_entity).add_child(e);
+
+        let Asset::AtlasTexture(texture, layout, index) = assets.remove(0) else {
+            return;
+        };
+        println!("{index}");
+        e = commands
+            .spawn((
+                Sprite {
+                    image: texture,
+                    texture_atlas: Some(TextureAtlas { layout, index }),
+                    image_mode: SpriteImageMode::Scale(SpriteScalingMode::FillCenter),
+                    ..Default::default()
+                },
+                Transform::from_translation(Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.5,
+                }),
+            ))
+            .id();
         commands.entity(base_entity).add_child(e);
     }
 
     fn request_assets<'a>(&self, mut context: RequestContext<'a>) -> RequestContext<'a> {
-        context.request_texture(CARD_BASE, 0);
+        context.request_texture(CARD_BASE.to_owned(), 0);
 
         let Some(c) = self.get_color() else {
             return context;
@@ -141,6 +158,12 @@ impl Assetable for SimpleCard {
 
         context.request_palette(vec![borders, c.into()], 1);
 
+        let CardValue::Numeral(n) = self.get_value() else {
+            return context;
+        };
+
+        context.request_atlastexture(CARD_FACE.to_owned() + &n.to_string(), 2);
+
         return context;
     }
 }
@@ -148,7 +171,7 @@ impl Assetable for SimpleCard {
 impl<'a, Band: AssignedBand<'a, C> + AssetableGroup, C: Assetable> AssetableGroup
     for PluralBand<'a, Band, C>
 {
-    fn predict_assets(&self) -> bevy::platform::collections::HashSet<AssetPreload> {
+    fn predict_assets(&self) -> Vec<String> {
         self.0.predict_assets()
     }
 

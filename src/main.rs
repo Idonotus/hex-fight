@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-mod cardrenderer;
+mod assets;
 mod content;
 mod engine;
 mod orchestrator;
@@ -9,7 +9,7 @@ mod resizeplugin;
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins,
+            DefaultPlugins.set(ImagePlugin::default_nearest()),
             resizeplugin::ResizePlugin,
             orchestrator::GamePlugin,
         ))
@@ -32,5 +32,5 @@ fn main() {
 // }
 
 fn setup(mut commands: Commands) {
-    commands.spawn((Camera2d,));
+    commands.spawn((Camera2d, Transform::from_translation(vec3(0.0, 0.0, 100.0))));
 }

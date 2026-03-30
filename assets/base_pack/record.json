@@ -1,0 +1,18 @@
+[
+	{
+		"type": "texture",
+		"name": "card-base",
+		"path": "./card-base.png",
+		"overrides": {
+			"format": "RGBAU8"
+		}
+	},
+	{
+		"type": "atlas",
+		"name": "card-face-atlas",
+		"names": ["face_0", "face_1", "face_2", "face_3", "face_4", "face_5", "face_6", "face_7", "face_8", "face_9", "face_#"],
+		"tile": [90, 140],
+		"dimensions": [11, 1],
+		"path": "./numbers.png"
+	}
+]

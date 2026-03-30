@@ -1,18 +1,15 @@
-use crate::{
-    cardrenderer::assets::{
-        AssetCache, AssetReference, AssetableGroup, BasePalette, MaterialCache, RequestContext,
-    },
-    content::{AllColorBand, AllColorPlugin, SimpleCard},
-    engine::{
-        Game,
-        cards::{AssignedBand, BandSet},
-    },
-};
+use crate::assets::{cache::AssetInterface, cardrender::AssetableGroup, loader};
 
 use super::{
-    cardrenderer::assets::{Asset as GameAsset, Assetable},
+    assets::{
+        cache::{Asset as GameAsset, AssetCache, AssetReference, MaterialCache},
+        cardrender::{Assetable, Details, RequestContext},
+        palette::BasePalette,
+    },
+    content::basic_cards::{AllColorBand, AllColorPlugin},
     engine::{
-        cards::{CardValue, Stacks},
+        Game,
+        cards::{AssignedBand, BandSet, CardValue, Stacks},
         colors::{Color, ColorComparison},
     },
 };
@@ -29,7 +26,7 @@ dyn_clone::clone_trait_object!(Card);
 type CardBox<'a> = Box<dyn Card + 'a>;
 
 impl<'a> Assetable for CardBox<'a> {
-    fn get_details(&self) -> crate::cardrenderer::assets::Details {
+    fn get_details(&self) -> Details {
         return self.as_ref().get_details();
     }
 
@@ -38,17 +35,14 @@ impl<'a> Assetable for CardBox<'a> {
         world: &mut World,
         card_size: Rectangle,
         base_entity: Entity,
-        assets: Vec<crate::cardrenderer::assets::Asset>,
+        assets: Vec<GameAsset>,
     ) -> () {
         return self
             .as_ref()
             .generate_layers(world, card_size, base_entity, assets);
     }
 
-    fn request_assets<'b>(
-        &self,
-        context: crate::cardrenderer::assets::RequestContext<'b>,
-    ) -> crate::cardrenderer::assets::RequestContext<'b> {
+    fn request_assets<'b>(&self, context: RequestContext<'b>) -> RequestContext<'b> {
         return self.as_ref().request_assets(context);
     }
 
@@ -84,14 +78,24 @@ impl<'a> AssignedBand<'a, CardBox<'a>> for AllColorBand {
 
 fn setup_game(world: &mut World) {
     let b = BandSet::new(vec![AllColorBand::new(10)]);
-
-    let mut i = world.resource_mut::<Assets<Image>>();
-    let img = i.reserve_handle();
-    i.insert(&img, BasePalette::gen_image(900));
+    let mut images = world.resource_mut::<Assets<Image>>();
+    let img = images.reserve_handle();
+    images.insert(&img, BasePalette::gen_image(900));
     let p = BasePalette::new(img, 900);
 
-    let server = world.resource::<AssetServer>();
-    world.insert_resource(AssetCache::new::<SimpleCard>(server, &b, p));
+    let mut cache = AssetCache::new(p);
+    loader::load_pack_index(
+        loader::path_to_abs("base_pack/record.json", None),
+        &mut cache,
+    )
+    .unwrap();
+    let (server, layouts) =
+        SystemState::<(ResMut<AssetServer>, ResMut<Assets<TextureAtlasLayout>>)>::new(world)
+            .get_mut(world);
+
+    cache.load(AssetInterface { server, layouts }, b.predict_assets());
+
+    world.insert_resource(cache);
     let mut game = Game::new(2, Box::new(rand::rng()), b);
     game.deal(14);
     world.insert_non_send_resource(game);
