@@ -62,7 +62,7 @@ impl PaletteAtlas for BasePalette {
         self.allocated += size;
 
         image_data.splice(initial_ref..self.allocated, data);
-        return self.allocated as PaletteReference / 4;
+        return initial_ref as PaletteReference / 4;
     }
 
     fn get_image(&self) -> Handle<Image> {

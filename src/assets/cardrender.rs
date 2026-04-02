@@ -1,6 +1,6 @@
-use std::mem::swap;
+use std::{fmt::Display, mem::swap};
 
-use bevy::{platform::collections::HashSet, prelude::*};
+use bevy::prelude::*;
 
 use crate::{
     assets::{
@@ -13,6 +13,12 @@ use crate::{
 pub struct Details {
     pub name: String,
     pub description: String,
+}
+
+impl Display for Details {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}\n{}\n\n", self.name, self.description)
+    }
 }
 
 pub trait Assetable {

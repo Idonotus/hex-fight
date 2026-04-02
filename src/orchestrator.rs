@@ -1,4 +1,7 @@
-use crate::assets::{cache::AssetInterface, cardrender::AssetableGroup, loader};
+use crate::{
+    assets::{batch::render_cards, cache::AssetInterface, cardrender::AssetableGroup, loader},
+    cardmenu::position_cards,
+};
 
 use super::{
     assets::{
@@ -80,7 +83,7 @@ fn setup_game(world: &mut World) {
     let b = BandSet::new(vec![AllColorBand::new(10)]);
     let mut images = world.resource_mut::<Assets<Image>>();
     let img = images.reserve_handle();
-    images.insert(&img, BasePalette::gen_image(900));
+    images.insert(&img, BasePalette::gen_image(6000));
     let p = BasePalette::new(img, 900);
 
     let mut cache = AssetCache::new(p);
@@ -97,65 +100,42 @@ fn setup_game(world: &mut World) {
 
     world.insert_resource(cache);
     let mut game = Game::new(2, Box::new(rand::rng()), b);
-    game.deal(14);
+    game.deal(1000);
     world.insert_non_send_resource(game);
 }
 
 fn test_system(world: &mut World) {
     // Ge t the card
-    let (mut assets, images, game) = SystemState::<(
-        ResMut<AssetCache>,
-        ResMut<Assets<Image>>,
-        NonSend<Game<AllColorBand, CardBox>>,
-    )>::new(world)
-    .get_mut(world);
-    let mut context = RequestContext::new(&mut assets.palette, images);
-    let mut cardinfo: Vec<CardBox> = game
+    let (game,) = SystemState::<(NonSend<Game<AllColorBand, CardBox>>,)>::new(world).get_mut(world);
+    let cardinfo: Vec<CardBox> = game
         .get_current_player()
         .hand
         .iter()
         .map(|c| c.clone())
         .collect();
-    let mut arcardinfo: Vec<Vec<AssetReference>> = Vec::new();
 
-    for card in cardinfo.iter() {
-        context.fill(card.get_asset_count()).unwrap();
-        context = card.request_assets(context);
-        let c = context.pop().into_iter().map(|a| a.unwrap()).collect();
-        arcardinfo.push(c);
-    }
+    let cards = render_cards(
+        world,
+        &cardinfo,
+        Rectangle::from_size(Vec2 { x: 90.0, y: 140.0 }),
+    );
 
-    let mut acardinfo: Vec<Vec<GameAsset>> = Vec::new();
-    for assetref in arcardinfo.drain(..) {
-        acardinfo.push(assets.get_assets(assetref));
-    }
-
-    // MAKEIT NOW!!!!
-    let mut commands = world.commands();
-    let mut ecardinfo: Vec<Entity> = Vec::new();
-    for i in 0..cardinfo.len() {
-        ecardinfo.push(
-            commands
-                .spawn((
-                    UICard {},
-                    Transform::default()
-                        .with_scale(Vec3::splat(2.0))
-                        .with_translation(Vec3 {
-                            x: (i as f32 - 6.0) * 180.0,
-                            y: 0.0,
-                            z: 0.0,
-                        }),
-                ))
-                .id(),
-        )
-    }
-
-    for _ in 0..cardinfo.len() {
-        let base_entity = ecardinfo.pop().unwrap();
-        let cardassets = acardinfo.pop().unwrap();
-        let card = cardinfo.pop().unwrap();
-        card.generate_layers(world, Rectangle::new(90.0, 140.0), base_entity, cardassets);
-    }
+    let commands = world.commands();
+    position_cards(
+        commands,
+        cards,
+        30,
+        Vec3 {
+            x: 45.0,
+            y: 140.0 * 5.0,
+            z: 0.0,
+        },
+        Vec3 {
+            x: 90.0,
+            y: 140.0,
+            z: 1.0,
+        },
+    );
 
     world.flush();
 }

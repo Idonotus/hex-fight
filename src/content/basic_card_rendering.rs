@@ -128,7 +128,7 @@ impl Assetable for SimpleCard {
         let Asset::AtlasTexture(texture, layout, index) = assets.remove(0) else {
             return;
         };
-        println!("{index}");
+
         e = commands
             .spawn((
                 Sprite {

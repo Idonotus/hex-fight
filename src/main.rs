@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 mod assets;
+mod cardmenu;
 mod content;
 mod engine;
 mod orchestrator;
