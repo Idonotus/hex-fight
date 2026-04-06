@@ -16,7 +16,7 @@ use super::{
         colors::{Color, ColorComparison},
     },
 };
-use bevy::{ecs::system::SystemState, prelude::*};
+use bevy::{ecs::system::SystemState, input::mouse::MouseWheel, prelude::*};
 use dyn_clone::DynClone;
 
 #[derive(Component)]
@@ -79,11 +79,17 @@ impl<'a> AssignedBand<'a, CardBox<'a>> for AllColorBand {
     }
 }
 
+#[derive(Component)]
+struct ScrollMenu {}
+
+#[derive(Component)]
+struct Selected {}
+
 fn setup_game(world: &mut World) {
     let b = BandSet::new(vec![AllColorBand::new(10)]);
     let mut images = world.resource_mut::<Assets<Image>>();
     let img = images.reserve_handle();
-    images.insert(&img, BasePalette::gen_image(6000));
+    images.insert(&img, BasePalette::gen_image(16000));
     let p = BasePalette::new(img, 900);
 
     let mut cache = AssetCache::new(p);
@@ -100,7 +106,7 @@ fn setup_game(world: &mut World) {
 
     world.insert_resource(cache);
     let mut game = Game::new(2, Box::new(rand::rng()), b);
-    game.deal(1000);
+    game.deal(2000);
     world.insert_non_send_resource(game);
 }
 
@@ -120,11 +126,18 @@ fn test_system(world: &mut World) {
         Rectangle::from_size(Vec2 { x: 90.0, y: 140.0 }),
     );
 
-    let commands = world.commands();
+    let mut commands = world.commands();
+    commands
+        .spawn((
+            ScrollMenu {},
+            Selected {},
+            Transform::from_scale(Vec3::splat(1.0)),
+        ))
+        .add_children(&cards);
     position_cards(
         commands,
         cards,
-        30,
+        14,
         Vec3 {
             x: 45.0,
             y: 140.0 * 5.0,
@@ -138,6 +151,36 @@ fn test_system(world: &mut World) {
     );
 
     world.flush();
+}
+
+const SCROLL_SCALE: f32 = 10.0;
+const EXTRA_MODIFIER: f32 = 10.0;
+
+fn send_scroll_events(
+    mut mouse_wheel_reader: MessageReader<MouseWheel>,
+    move_map: Query<(&mut Transform,), (With<ScrollMenu>, With<Selected>)>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+) {
+    let mut delta = Vec2::splat(0.0);
+    for mouse_wheel in mouse_wheel_reader.read() {
+        delta += Vec2::new(mouse_wheel.x, mouse_wheel.y);
+    }
+
+    delta *= -SCROLL_SCALE;
+
+    if keyboard_input.pressed(KeyCode::ShiftLeft) {
+        delta *= EXTRA_MODIFIER;
+    }
+
+    delta.y = 5.0;
+
+    if keyboard_input.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
+        std::mem::swap(&mut delta.x, &mut delta.y);
+    }
+
+    for (mut t,) in move_map.into_iter() {
+        t.translation += vec3(delta.x, delta.y, 0.0);
+    }
 }
 
 fn loading(
@@ -169,7 +212,13 @@ impl Plugin for GamePlugin {
         app.init_state::<GameState>()
             .add_systems(Startup, setup_game)
             .add_systems(OnEnter(GameState::InGame), test_system)
-            .add_systems(Update, loading.run_if(in_state(GameState::Loading)));
+            .add_systems(
+                Update,
+                (
+                    loading.run_if(in_state(GameState::Loading)),
+                    send_scroll_events,
+                ),
+            );
     }
 }
 
