@@ -1,11 +1,16 @@
+use std::sync::Arc;
+
 use crate::{
-    assets::{batch::render_cards, cache::AssetInterface, cardrender::AssetableGroup, loader},
+    assets::{
+        batch::render_cards, cache::AssetInterface, cardrender::AssetableGroup, loader,
+        palette::PaletteAtlas,
+    },
     cardmenu::position_cards,
 };
 
 use super::{
     assets::{
-        cache::{Asset as GameAsset, AssetCache, AssetReference, MaterialCache},
+        cache::{Asset as GameAsset, AssetCache, MaterialCache},
         cardrender::{Assetable, Details, RequestContext},
         palette::BasePalette,
     },
@@ -22,7 +27,7 @@ use dyn_clone::DynClone;
 #[derive(Component)]
 struct UICard {}
 
-trait Card: Stacks + Assetable + DynClone {}
+trait Card: Stacks + Assetable + DynClone + Send + Sync {}
 
 dyn_clone::clone_trait_object!(Card);
 
@@ -71,7 +76,7 @@ impl<'a> Stacks for CardBox<'a> {
         self.as_ref().get_stacking_priority()
     }
 }
-impl<T: Stacks + Assetable + Clone> Card for T {}
+impl<T: Stacks + Assetable + Clone + Sync + Send> Card for T {}
 
 impl<'a> AssignedBand<'a, CardBox<'a>> for AllColorBand {
     fn generate_card(&mut self, c_id: u64) -> CardBox<'a> {
@@ -85,12 +90,14 @@ struct ScrollMenu {}
 #[derive(Component)]
 struct Selected {}
 
+const PALETTE_SIZE: UVec2 = UVec2 { x: 800, y: 400 };
+
 fn setup_game(world: &mut World) {
     let b = BandSet::new(vec![AllColorBand::new(10)]);
     let mut images = world.resource_mut::<Assets<Image>>();
     let img = images.reserve_handle();
-    images.insert(&img, BasePalette::gen_image(16000));
-    let p = BasePalette::new(img, 900);
+    images.insert(&img, BasePalette::gen_image(PALETTE_SIZE));
+    let p = BasePalette::new(img, PALETTE_SIZE);
 
     let mut cache = AssetCache::new(p);
     loader::load_pack_index(
@@ -146,7 +153,7 @@ fn test_system(world: &mut World) {
         Vec3 {
             x: 90.0,
             y: 140.0,
-            z: 1.0,
+            z: 0.0,
         },
     );
 
@@ -172,8 +179,6 @@ fn send_scroll_events(
         delta *= EXTRA_MODIFIER;
     }
 
-    delta.y = 5.0;
-
     if keyboard_input.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
         std::mem::swap(&mut delta.x, &mut delta.y);
     }
@@ -197,6 +202,11 @@ fn loading(
 }
 
 pub struct GamePlugin;
+
+#[derive(Component)]
+struct Hand {
+    data: Vec<Arc<dyn Card>>,
+}
 
 impl GamePlugin {
     fn insert_plugins(&self, app: &mut App) {

@@ -34,12 +34,12 @@ struct RecolourMaterial {
     texture: Option<Handle<Image>>,
     #[uniform(1)]
     size: UVec2,
-    #[texture(2, dimension = "1d")]
+    #[texture(2, dimension = "2d")]
     palette: Option<Handle<Image>>,
     #[uniform(3)]
-    offset: u32,
+    offset: UVec2,
     #[uniform(4)]
-    cap: u32,
+    cap: UVec2,
 }
 
 impl Material2d for RecolourMaterial {
@@ -117,8 +117,8 @@ impl Assetable for SimpleCard {
         let mat = MeshMaterial2d(materials.add(RecolourMaterial {
             palette: Some(palette),
             texture: Some(img),
-            offset: offset as u32,
-            cap: cap as u32,
+            offset: offset,
+            cap: cap,
             size,
         }));
         let mut commands = world.commands();

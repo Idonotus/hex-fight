@@ -3,9 +3,9 @@
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var base_color_texture: texture_2d<u32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var<uniform> texture_size: vec2<u32>;
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(2) var palette_texture: texture_1d<f32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> offset: u32;
-@group(#{MATERIAL_BIND_GROUP}) @binding(4) var<uniform> cap: u32;
+@group(#{MATERIAL_BIND_GROUP}) @binding(2) var palette_texture: texture_2d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> offset: vec2<u32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(4) var<uniform> cap: vec2<u32>;
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
@@ -16,5 +16,5 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
 		return vec4<f32>(0.0,0.0,0.0,0.0);
 	}
 
-	return textureLoad(palette_texture, i32(pixel.r + offset), 0);
+	return textureLoad(palette_texture, vec2<i32>(i32(pixel.r + pixel.g * 255), 0) + vec2<i32>(offset), 0);
 }
