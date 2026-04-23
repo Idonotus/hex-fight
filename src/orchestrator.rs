@@ -5,7 +5,8 @@ use crate::{
         batch::render_cards, cache::AssetInterface, cardrender::AssetableGroup, loader,
         palette::PaletteAtlas,
     },
-    cardmenu::position_cards,
+    cardmenu::{CardGroup, WidthLayout, display_groups},
+    engine::cards::does_stack,
 };
 
 use super::{
@@ -91,6 +92,11 @@ struct ScrollMenu {}
 struct Selected {}
 
 const PALETTE_SIZE: UVec2 = UVec2 { x: 800, y: 400 };
+const CARD_SIZE: Vec3 = Vec3 {
+    x: 90.0,
+    y: 140.0,
+    z: 0.0,
+};
 
 fn setup_game(world: &mut World) {
     let b = BandSet::new(vec![AllColorBand::new(10)]);
@@ -114,6 +120,7 @@ fn setup_game(world: &mut World) {
     world.insert_resource(cache);
     let mut game = Game::new(2, Box::new(rand::rng()), b);
     game.deal(2000);
+    game.top_card = game.draw_card();
     world.insert_non_send_resource(game);
 }
 
@@ -127,35 +134,67 @@ fn test_system(world: &mut World) {
         .map(|c| c.clone())
         .collect();
 
-    let cards = render_cards(
+    let vstacks = game.get_valid_stacks_for_player(game.order.get_turn(), &|base, head| {
+        does_stack(base, head, &game.comparison)
+    });
+
+    let mut cards = render_cards(
         world,
         &cardinfo,
         Rectangle::from_size(Vec2 { x: 90.0, y: 140.0 }),
     );
 
     let mut commands = world.commands();
+
+    let playable_group = commands.spawn(()).id();
+    let mut playable_cards = Vec::new();
+    let unplayable_group = commands.spawn(()).id();
+
     commands
         .spawn((
             ScrollMenu {},
             Selected {},
             Transform::from_scale(Vec3::splat(1.0)),
         ))
-        .add_children(&cards);
-    position_cards(
-        commands,
-        cards,
-        14,
-        Vec3 {
-            x: 45.0,
-            y: 140.0 * 5.0,
-            z: 0.0,
-        },
-        Vec3 {
-            x: 90.0,
-            y: 140.0,
-            z: 0.0,
-        },
-    );
+        .add_children(&vec![playable_group, unplayable_group]);
+
+    let mut pgroup = commands.entity(playable_group.clone());
+    for index in vstacks.into_iter().rev() {
+        let pcard = cards.remove(index);
+        playable_cards.push(pcard);
+        pgroup.add_child(pcard);
+    }
+
+    let mut ugroup = commands.entity(unplayable_group);
+    cards.iter().for_each(|c| {
+        ugroup.add_child(*c);
+    });
+
+    let positionerbase = WidthLayout {
+        width: 14,
+        card_size: CARD_SIZE,
+    };
+
+    let groups = vec![
+        (
+            playable_group,
+            CardGroup {
+                name: "Playable cards".to_owned(),
+                layout: Box::new(positionerbase),
+                cards: playable_cards,
+            },
+        ),
+        (
+            unplayable_group,
+            CardGroup {
+                name: "Other cards".to_owned(),
+                layout: Box::new(positionerbase),
+                cards,
+            },
+        ),
+    ];
+
+    display_groups(commands, groups, 140.0);
 
     world.flush();
 }

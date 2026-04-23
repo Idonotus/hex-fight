@@ -29,10 +29,10 @@ where
     card_set: BandSet<'a, Band, Card>,
 
     players: Vec<Player<Card>>,
-    order: Scheduler<'a>,
+    pub order: Scheduler<'a>,
 
-    top_card: Option<Card>,
-    comparison: ColorComparison,
+    pub top_card: Option<Card>,
+    pub comparison: ColorComparison,
 }
 
 impl<'a, Band, Card> Game<'a, Band, Card>
