@@ -2,30 +2,123 @@ use rand::{
 	Rng,
 	RngCore
 };
+use std::iter::Sum;
 use std::{cmp::Ordering, marker::PhantomData};
-use std::ops::Add;
+use std::ops::{Add, Deref};
 
 use crate::engine::colors::{
 	Color,
 	ColorComparison
 };
 
-pub trait IdDeck {
-	fn put_card(&mut self, card_id: u64) -> bool;
-	fn pop_card(&mut self, card_id: u64) -> bool;
+// Macro?
 
-	fn get_max_size(&self) -> u64;
-	fn get_size(&self) -> u64;
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct DeckId(pub u64);
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct DeckCapacity(pub u64);
+
+impl Sum for DeckCapacity {
+	fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+		DeckCapacity(iter.map(|c| *c).sum())
+	}
+}
+
+impl Add for DeckCapacity {
+	type Output = DeckCapacity;
+
+	fn add(mut self, rhs: Self) -> Self::Output {
+		self.0 += rhs.0;
+		self
+	}
+}
+
+impl PartialEq<DeckId> for DeckCapacity {
+	fn eq(&self, other: &DeckId) -> bool {
+		self.0 == other.0
+	}	
+}
+
+impl PartialOrd<DeckId> for DeckCapacity {
+	fn partial_cmp(&self, other: &DeckId) -> Option<Ordering> {
+		if self.0 > other.0 {
+			return Some(Ordering::Greater);
+		}
+		if self.0 < other.0 {
+			return Some(Ordering::Less);
+		}
+		return Some(Ordering::Equal);
+	}
+}
+
+impl Deref for DeckId {
+	type Target = u64;
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl Deref for DeckCapacity {
+	type Target = u64;
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct VirtualDeckId(pub u64);
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct DeckSize(pub u64);
+
+impl PartialEq<VirtualDeckId> for DeckSize {
+	fn eq(&self, other: &VirtualDeckId) -> bool {
+		self.0 == other.0
+	}	
+}
+
+impl PartialOrd<VirtualDeckId> for DeckSize {
+	fn partial_cmp(&self, other: &VirtualDeckId) -> Option<Ordering> {
+		if self.0 > other.0 {
+			return Some(Ordering::Greater);
+		}
+		if self.0 < other.0 {
+			return Some(Ordering::Less);
+		}
+		return Some(Ordering::Equal);
+	}
+}
+
+impl Deref for VirtualDeckId {
+	type Target = u64;
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl Deref for DeckSize {
+	type Target = u64;
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+pub trait IdDeck {
+	fn put_card(&mut self, card_id: DeckId) -> bool;
+	fn pop_card(&mut self, card_id: DeckId) -> bool;
+
+	fn get_max_size(&self) -> DeckCapacity;
+	fn get_size(&self) -> DeckSize;
 	fn is_empty(&self) -> bool;
-	fn map_available_to_overall(&self, available_id: u64) -> u64;
+	fn map_available_to_overall(&self, available_id: VirtualDeckId) -> DeckId;
 }
 
 pub trait RandomDraw: IdDeck {
-	fn draw_card_random(&mut self, rng: &mut dyn RngCore) -> Option<u64> {
+	fn draw_card_random(&mut self, rng: &mut dyn RngCore) -> Option<DeckId> {
 		if self.is_empty() {
 			return None;
 		}
-		let card = rng.random_range(0..self.get_size());
+		let card = VirtualDeckId(rng.random_range(0..*self.get_size()));
 		let card_id = self.map_available_to_overall(card);
 		if !self.pop_card(card_id) {
 			panic!("Mapping provided card that was already drawn")
@@ -43,11 +136,12 @@ pub struct RLEDeck {
 }
 
 impl RLEDeck {
-	pub fn new(length: u64) -> Self {
+	pub fn new(length: DeckCapacity) -> Self {
+		let len = length.0;
 		return Self {
-			deck: vec![length],
-			current_size: length,
-			overall_size: length,
+			deck: vec![len],
+			current_size: len,
+			overall_size: len,
 			startpresent: true,
 		}
 	}
@@ -69,8 +163,8 @@ impl RLEDeck {
 		self.deck[idx - 1] += extra;
 	}
 
-	fn set_state(&mut self, card: u64, state: bool) -> bool {
-		let mut dist_tracker = card;
+	fn set_state(&mut self, card: DeckId, state: bool) -> bool {
+		let mut dist_tracker = card.0;
 		let mut exist_tracker = self.startpresent;
 		let mut latest_i = 0usize;
 		for (i, slice) in self.deck.iter().enumerate() {
@@ -138,20 +232,20 @@ impl RLEDeck {
 }
 
 impl IdDeck for RLEDeck {
-	fn get_max_size(&self) -> u64 {
-		return self.overall_size;
+	fn get_max_size(&self) -> DeckCapacity {
+		return DeckCapacity(self.overall_size);
 	}
 
-	fn get_size(&self) -> u64 {
-		return self.current_size;
+	fn get_size(&self) -> DeckSize {
+		return DeckSize(self.current_size);
 	}
 
 	fn is_empty(&self) -> bool {
 		return self.current_size <= 0;
 	}
 
-	fn put_card(&mut self, card_id: u64) -> bool {
-		if card_id > self.overall_size {
+	fn put_card(&mut self, card_id: DeckId) -> bool {
+		if card_id.0 > self.overall_size {
 			panic!("Card doesn't belong to deck");
 		}
 		let res = self.set_state(card_id, true);
@@ -161,8 +255,8 @@ impl IdDeck for RLEDeck {
 		return res;
 	}
 
-	fn pop_card(&mut self, card_id: u64) -> bool {
-		if card_id > self.overall_size {
+	fn pop_card(&mut self, card_id: DeckId) -> bool {
+		if card_id.0 > self.overall_size {
 			panic!("Card doesn't belong to deck");
 		}
 		let res = self.set_state(card_id, false);
@@ -172,20 +266,25 @@ impl IdDeck for RLEDeck {
 		return res;
 	}
 
-	fn map_available_to_overall(&self, available_id: u64) -> u64 {
-		let mut total = 0u64;
+	fn map_available_to_overall(&self, available_id: VirtualDeckId) -> DeckId {
+		let mut total = DeckId(0);
 		let mut dist_tracker = available_id;
-		let mut exist_tracker = self.startpresent;
+		let mut exist_tracker = !self.startpresent;
 		for slice in self.deck.iter() {
-			if *slice > dist_tracker {
-				total += dist_tracker;
+			exist_tracker = !exist_tracker;
+			if !exist_tracker {
+				total.0 += slice;
+				continue;
+			}
+			if *slice > dist_tracker.0 {
+				total.0 += dist_tracker.0;
 				break;
 			}
-			total += slice;
-			dist_tracker -= if exist_tracker {*slice} else {0};
-			exist_tracker = !exist_tracker;
+			total.0 += slice;
+			dist_tracker.0 -= *slice;
+			
 		}
-		return  total;
+		return total;
 	}
 
 }
@@ -241,21 +340,21 @@ pub fn does_stack(base: &dyn Stacks, head: &dyn Stacks, color_comparason: &Color
 }
 
 pub(crate) trait BaseBand {
-	fn get_band_size(&self) -> u64;
+	fn get_band_size(&self) -> DeckCapacity;
 }
 
 pub(crate) trait AssignedBand<'a, C>: BaseBand {
-	fn generate_card(&mut self, c_id: u64) -> C;
+	fn generate_card(&mut self, c_id: DeckId) -> C;
 }
 
 impl<'a, C> BaseBand for Box<dyn AssignedBand<'a, C> + 'a> {
-	fn get_band_size(&self) -> u64 {
+	fn get_band_size(&self) -> DeckCapacity {
 		self.as_ref().get_band_size()
 	}
 }
 
 impl<'a, C> AssignedBand<'a, C> for Box<dyn AssignedBand<'a, C> + 'a> {
-	fn generate_card(&mut self, c_id: u64) -> C {
+	fn generate_card(&mut self, c_id: DeckId) -> C {
 		self.as_mut().generate_card(c_id)
 	}
 }
@@ -283,22 +382,76 @@ where Band: AssignedBand<'a, T> {
 }
 
 impl<'a, Band: AssignedBand<'a, T>, T> BaseBand for BandSet<'a, Band, T> {
-	fn get_band_size(&self) -> u64 {
+	fn get_band_size(&self) -> DeckCapacity {
 		self.0.iter().map(|b| {b.get_band_size()}).sum()
 	}
 }
 
 impl<'a, T, Band> AssignedBand<'a, T> for BandSet<'a, Band, T>
 where Band: AssignedBand<'a, T> {
-	fn generate_card(&mut self, c_id: u64) -> T {
+	fn generate_card(&mut self, c_id: DeckId) -> T {
 		let mut rest = c_id;
 		for band in &mut self.0 {
 			let size = band.get_band_size();
-			if rest < size {
+			if size > rest {
 				return band.generate_card(rest);
 			}
-			rest -= size;
+			rest.0 -= size.0;
 		}
 		panic!("Card is out of set")
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn base_deck() -> RLEDeck {
+		RLEDeck::new(DeckCapacity(100))
+	}
+
+	#[test]
+	fn draw_pop() {
+		let mut deck = base_deck();
+		for idx in 0..*deck.get_size() {
+			assert!(deck.pop_card(DeckId(idx)));
+			assert!(!deck.pop_card(DeckId(idx)));
+		}
+	}
+
+	#[test]
+	fn rle_check() {
+		let mut deck = base_deck();
+		deck.pop_card(DeckId(0));
+		assert_eq!(deck.deck.len(), 2);
+		assert!(!deck.startpresent);
+		deck.put_card(DeckId(0));
+		assert!(deck.startpresent);
+		deck.pop_card(DeckId(3));
+		assert_eq!(deck.deck[0], 3);
+		assert_eq!(deck.deck[1], 1);
+		assert_eq!(deck.deck[2], 96);
+	}
+
+	#[test]
+	fn simple_mapping() {
+		let deck = base_deck();
+		for idx in 0..100u64 {
+			let r = deck.map_available_to_overall(VirtualDeckId(idx));
+			println!("{:?}", deck.deck);
+			assert_eq!(r, DeckId(idx));
+		}
+	}
+
+	#[test]
+	fn extended_mapping() {
+		let mut deck = base_deck();
+		for idx in 0..100u64 {
+			let r = deck.map_available_to_overall(VirtualDeckId(0));
+			println!("{:?} {r:?}", deck.deck);
+			assert_eq!(r, DeckId(idx));
+			assert!(deck.pop_card(r));
+		}
+		assert!(deck.is_empty());
 	}
 }

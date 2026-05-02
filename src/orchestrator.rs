@@ -6,7 +6,7 @@ use crate::{
         palette::PaletteAtlas,
     },
     cardmenu::{CardGroup, WidthLayout, display_groups},
-    engine::cards::does_stack,
+    engine::cards::{DeckId, does_stack},
 };
 
 use super::{
@@ -80,7 +80,7 @@ impl<'a> Stacks for CardBox<'a> {
 impl<T: Stacks + Assetable + Clone + Sync + Send> Card for T {}
 
 impl<'a> AssignedBand<'a, CardBox<'a>> for AllColorBand {
-    fn generate_card(&mut self, c_id: u64) -> CardBox<'a> {
+    fn generate_card(&mut self, c_id: DeckId) -> CardBox<'a> {
         Box::new(self.generate_card(c_id))
     }
 }

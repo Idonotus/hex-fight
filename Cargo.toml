@@ -16,3 +16,6 @@ features = ["full"]
 version = "0.18"
 default-features = false
 features = ["2d", "file_watcher"]
+
+[dev-dependencies]
+test-case = "*"

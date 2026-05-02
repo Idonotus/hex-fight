@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::engine::{
-    cards::{AssignedBand, BaseBand, CardValue, Stacks},
+    cards::{AssignedBand, BaseBand, CardValue, DeckCapacity, DeckId, Stacks},
     colors::Color,
 };
 
@@ -24,7 +24,8 @@ impl AllColorBand {
         return self.plugin;
     }
 
-    pub fn generate_card(&mut self, c_id: u64) -> SimpleCard {
+    pub fn generate_card(&mut self, card_id: DeckId) -> SimpleCard {
+        let c_id = *card_id;
         let (c_id, r) = (c_id / 256, (c_id % 256) as u8);
         let (c_id, g) = (c_id / 256, (c_id % 256) as u8);
         let (value, b) = (
@@ -37,8 +38,8 @@ impl AllColorBand {
 }
 
 impl BaseBand for AllColorBand {
-    fn get_band_size(&self) -> u64 {
-        return 0x1000000u64 * self.numeral as u64;
+    fn get_band_size(&self) -> DeckCapacity {
+        return DeckCapacity(0x1000000u64 * self.numeral as u64);
     }
 }
 
@@ -90,13 +91,16 @@ where
 }
 
 impl<'a, Band: AssignedBand<'a, C>, C> BaseBand for PluralBand<'a, Band, C> {
-    fn get_band_size(&self) -> u64 {
-        self.0.get_band_size() * self.1
+    fn get_band_size(&self) -> DeckCapacity {
+        let mut cap = self.0.get_band_size();
+        cap.0 *= self.1;
+        return cap;
     }
 }
 
 impl<'a, Band: AssignedBand<'a, C>, C> AssignedBand<'a, C> for PluralBand<'a, Band, C> {
-    fn generate_card(&mut self, c_id: u64) -> C {
-        self.0.generate_card(c_id / self.1)
+    fn generate_card(&mut self, mut c_id: DeckId) -> C {
+        c_id.0 /= self.1;
+        self.0.generate_card(c_id)
     }
 }
