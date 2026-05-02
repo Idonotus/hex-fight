@@ -15,7 +15,7 @@ features = ["full"]
 [dependencies.bevy]
 version = "0.18"
 default-features = false
-features = ["2d", "file_watcher"]
+features = ["2d", "file_watcher", "debug"]
 
 [dev-dependencies]
 test-case = "*"

@@ -32,7 +32,7 @@ struct ClickQueue {
 
 impl Plugin for MousePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (check_clicks, follow_mouse));
+        app.add_systems(Update, check_clicks).add_systems(FixedUpdate, follow_mouse);
     }
 }
 
@@ -51,7 +51,9 @@ fn check_clicks(world: &mut World) {
         mut msgs): S = sys.get_mut(world);
     let w: &Window = windows.single().unwrap();
     let (c, ctrans): (&Camera, &GlobalTransform) = cams.single().unwrap();
-    let mpos = w.cursor_position().and_then(|x| c.viewport_to_world_2d(ctrans, x).ok()).unwrap();
+    let Some(mpos) = w.cursor_position().and_then(|x| c.viewport_to_world_2d(ctrans, x).ok()) else {
+        return;
+    };
 
     let mut click_queue: Vec<ClickQueue> = Vec::new();
     let mut clicks: Vec<MouseButtonInput> = Vec::new();
@@ -118,14 +120,25 @@ impl<T> DelayQueue<T> {
 
 #[derive(Component)]
 pub struct FollowMouse {
-    offset: Vec2,
-    pos_queue: DelayQueue<Vec2>
+    pub offset: Vec2,
+    pub pos_queue: DelayQueue<Vec2>
+}
+
+impl FollowMouse {
+    pub fn new(offset: Vec2, delay: usize) -> Self {
+        Self {
+            offset,
+            pos_queue: DelayQueue::new(delay)
+        }
+    }
 }
 
 fn follow_mouse(wq: Query<&Window>, cq: Query<(&Camera, &GlobalTransform)>, followers: Query<(&mut Transform, &mut FollowMouse)>) {
     let w: &Window = wq.single().unwrap();
     let (c, ctrans): (&Camera, &GlobalTransform) = cq.single().unwrap();
-    let mpos = w.cursor_position().and_then(|x| c.viewport_to_world_2d(ctrans, x).ok()).unwrap();
+    let Some(mpos) = w.cursor_position().and_then(|x| c.viewport_to_world_2d(ctrans, x).ok()) else {
+        return;
+    };
     for (mut t, mut m) in followers {
         let follow_pos = mpos + m.offset;
         match m.pos_queue.push(follow_pos) {

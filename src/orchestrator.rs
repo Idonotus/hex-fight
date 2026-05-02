@@ -5,7 +5,7 @@ use crate::{
         batch::render_cards, cache::AssetInterface, cardrender::AssetableGroup, loader,
         palette::PaletteAtlas,
     },
-    cardmenu::{CardGroup, WidthLayout, display_groups},
+    cardmenu::{CardGroup, Selector, WidthLayout, display_groups},
     engine::cards::{DeckId, does_stack},
 };
 
@@ -24,9 +24,6 @@ use super::{
 };
 use bevy::{ecs::system::SystemState, input::mouse::MouseWheel, prelude::*};
 use dyn_clone::DynClone;
-
-#[derive(Component)]
-struct UICard {}
 
 trait Card: Stacks + Assetable + DynClone + Send + Sync {}
 
@@ -232,6 +229,10 @@ fn loading(
     }
 }
 
+fn setup_ui(mut commands: Commands) {
+    commands.insert_resource(Selector::default());
+}
+
 pub struct GamePlugin;
 
 #[derive(Component)]
@@ -251,7 +252,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         self.insert_plugins(app);
         app.init_state::<GameState>()
-            .add_systems(Startup, setup_game)
+            .add_systems(Startup, (setup_game, setup_ui))
             .add_systems(OnEnter(GameState::InGame), test_system)
             .add_systems(
                 Update,

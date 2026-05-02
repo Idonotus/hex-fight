@@ -1,14 +1,12 @@
 use bevy::{
-    ecs::{component::Component, entity::Entity, system::Commands, world::World},
-    math::{Vec2, Vec3, Vec3Swizzles, primitives::Rectangle, vec2, vec3},
-    transform::components::Transform,
+    ecs::{component::Component, entity::Entity, system::{Commands, SystemState, command}, world::World}, input::ButtonState, math::{Vec2, Vec3, Vec3Swizzles, primitives::Rectangle, vec2, vec3}, prelude::*, transform::components::{GlobalTransform, Transform}
 };
 use std::{
     cmp::min,
     ops::Add,
 };
 
-use crate::mouse::{ClickBox, ClickEvent};
+use crate::mouse::{ClickBox, ClickEvent, DelayQueue, FollowMouse};
 
 mod origins;
 
@@ -159,7 +157,7 @@ impl CardGrid {
         self.grid[position.0][position.1].take()
     }
 
-    fn map_screen_to_grid_coord(&self, position: Vec2) -> Option<(usize, usize)> {
+    fn map_world_to_grid_coord(&self, position: Vec2) -> Option<(usize, usize)> {
         let x = find_class_belonging_to_item::<f32>(0.0, &self.widths, position.x);
         if let None = x {
             return None;
@@ -182,8 +180,42 @@ impl CardGrid {
             grid,
         }
     }
+
+    fn get(&self, position: (usize, usize)) -> Option<Entity> {
+        self.grid[position.0][position.1]
+    }
 }
 
+#[derive(Resource, Default)]
+pub struct Selector(usize);
+
 fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
+    if click.state != ButtonState::Pressed || click.button != MouseButton::Left {
+        return;
+    }
+    let grid = world.get::<CardGrid>(entity).unwrap();
+    let t = match world.get::<GlobalTransform>(entity) {
+        Some(t) => {
+            t.translation().xy()
+        }
+        None => Vec2::splat(0.0)
+    };
     
+    let Some(grid_coord) = grid.map_world_to_grid_coord(click.position - t) else {
+        return;
+    };
+    let Some(card) = grid.get(grid_coord) else {
+        return;
+    };
+
+    type S<'w, 's> = (
+        ResMut<'w, Selector>,
+        Commands<'w, 's>
+    );
+
+    let mut j: SystemState<S> = SystemState::new(world);
+    let (mut s, mut c): S<'_, '_> = j.get_mut(world);
+    s.0 += 1;
+    c.entity(card).insert(FollowMouse::new(vec2(-40.0, 0.0) * s.0 as f32, 40 * s.0));
+    j.apply(world);
 }
