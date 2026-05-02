@@ -94,9 +94,7 @@ pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, b
     for (e, group) in cards.iter() {
         let amount = group.cards.len();
         let bounds = group.layout.get_bounds(amount);
-        let tleft = group.layout.top_left(amount);
-
-        let centerref = -tleft - vec3(bounds.x / 2.0, 0.0, 0.0);
+        
         let mut positioner = group.layout.position_cards(amount);
         let mut grid = group.layout.grid(amount);
         for (idx, c) in group.cards.iter().enumerate() {
@@ -105,15 +103,19 @@ pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, b
                 .expect("Positioner ran out of positions when given the expected amount");
             commands
                 .entity(*c)
-                .insert(Transform::from_translation(position + centerref));
+                .insert(Transform::from_translation(position));
             let (x,y) = group.layout.on_grid(idx);
             grid.grid[x][y] = Some(*c);
         }
 
+        let tleft = group.layout.top_left(amount);
+
+        let centerref = -tleft - vec3(bounds.x / 2.0, -currenty, 0.0);
+
         commands
             .entity(*e)
             .insert((
-                Transform::from_xyz(0.0, currenty - tleft.y, 0.0),
+                Transform::from_translation(centerref),
                 grid,
                 ClickBox {
                     bounds: Rectangle::from_size(bounds.xy()),
@@ -193,12 +195,13 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
     if click.state != ButtonState::Pressed || click.button != MouseButton::Left {
         return;
     }
+    dbg!(click);
     let grid = world.get::<CardGrid>(entity).unwrap();
     let t = match world.get::<GlobalTransform>(entity) {
         Some(t) => {
             t.translation().xy()
         }
-        None => Vec2::splat(0.0)
+        None => {println!("no global trans"); Vec2::splat(0.0)}
     };
     
     let Some(grid_coord) = grid.map_world_to_grid_coord(click.position - t) else {
@@ -208,6 +211,8 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
         return;
     };
 
+    dbg!(card);
+
     type S<'w, 's> = (
         ResMut<'w, Selector>,
         Commands<'w, 's>
@@ -216,6 +221,9 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
     let mut j: SystemState<S> = SystemState::new(world);
     let (mut s, mut c): S<'_, '_> = j.get_mut(world);
     s.0 += 1;
-    c.entity(card).insert(FollowMouse::new(vec2(-40.0, 0.0) * s.0 as f32, 40 * s.0));
+    let followcount = s.0;
+    c.entity(card).insert((FollowMouse::new(vec2(-40.0, 0.0) * followcount as f32, followcount)));
     j.apply(world);
+
+    world.get_mut::<Transform>(card).and_then(|mut g| {g.translation.z = followcount as f32; None::<u8>});
 }

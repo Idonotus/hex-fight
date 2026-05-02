@@ -4,7 +4,7 @@ use bevy::{ecs::system::SystemState, input::{ButtonState, mouse::MouseButtonInpu
 
 pub struct MousePlugin;
 
-
+#[derive(Debug, Clone, Copy)]
 pub struct ClickEvent {
     pub button: MouseButton,
     pub state: ButtonState,
@@ -68,10 +68,10 @@ fn check_clicks(world: &mut World) {
     for (b, t, e) in boxes {
         if !b.active {continue;}
         let mut buttons: Vec<MouseButtonInput> = Vec::new();
-        for click in clicks.iter() {
-            let pos = t.translation().xy();
-            let relclick = mpos - pos;
+        let pos = t.translation().xy();
+        let relclick = mpos - pos;
 
+        for click in clicks.iter() {
             if relclick.x < 0.0 || relclick.y < 0.0 { continue; }
 
             let size = b.bounds.size();
@@ -98,10 +98,14 @@ pub struct DelayQueue<T> {
 
 impl<T> DelayQueue<T> {
     fn new(size: usize) -> Self {
+        let mut pos_queue = Vec::with_capacity(size);
+        for _ in 0..size {
+            pos_queue.push(None);
+        }
         Self {
             length: size,
             head: 0,
-            pos_queue: Vec::with_capacity(size)
+            pos_queue
         }
     }
 
@@ -112,7 +116,7 @@ impl<T> DelayQueue<T> {
         }
         swap(&mut c, &mut self.pos_queue[self.head]);
 
-        self.head = self.head + 1 % self.length;
+        self.head = (self.head + 1) % self.length;
 
         return c;
     }
@@ -133,13 +137,13 @@ impl FollowMouse {
     }
 }
 
-fn follow_mouse(wq: Query<&Window>, cq: Query<(&Camera, &GlobalTransform)>, followers: Query<(&mut Transform, &mut FollowMouse)>) {
+fn follow_mouse(wq: Query<&Window>, cq: Query<(&Camera, &GlobalTransform)>, followers: Query<(&mut Transform, &mut FollowMouse, &GlobalTransform)>) {
     let w: &Window = wq.single().unwrap();
     let (c, ctrans): (&Camera, &GlobalTransform) = cq.single().unwrap();
     let Some(mpos) = w.cursor_position().and_then(|x| c.viewport_to_world_2d(ctrans, x).ok()) else {
         return;
     };
-    for (mut t, mut m) in followers {
+    for (mut t, mut m, g) in followers {
         let follow_pos = mpos + m.offset;
         match m.pos_queue.push(follow_pos) {
             Some(p) => {
