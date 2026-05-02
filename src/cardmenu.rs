@@ -1,10 +1,16 @@
 use bevy::{
-    ecs::{component::Component, entity::Entity, system::{Commands, SystemState, command}, world::World}, input::ButtonState, math::{Vec2, Vec3, Vec3Swizzles, primitives::Rectangle, vec2, vec3}, prelude::*, transform::components::{GlobalTransform, Transform}
+    ecs::{
+        component::Component,
+        entity::Entity,
+        system::{Commands, SystemState, command},
+        world::World,
+    },
+    input::ButtonState,
+    math::{Vec2, Vec3, Vec3Swizzles, primitives::Rectangle, vec2, vec3},
+    prelude::*,
+    transform::components::{GlobalTransform, Transform},
 };
-use std::{
-    cmp::min,
-    ops::Add,
-};
+use std::{cmp::min, ops::Add};
 
 use crate::mouse::{ClickBox, ClickEvent, DelayQueue, FollowMouse};
 
@@ -82,7 +88,11 @@ impl CardLayout for WidthLayout {
         for _ in 0..x {
             grid.push(vec![None; y]);
         }
-        CardGrid { widths: vec![self.card_size.x; x], heights: vec![self.card_size.y; y], grid }
+        CardGrid {
+            widths: vec![self.card_size.x; x],
+            heights: vec![self.card_size.y; y],
+            grid,
+        }
     }
     fn on_grid(&self, idx: usize) -> (usize, usize) {
         (idx % self.width, idx / self.width)
@@ -94,7 +104,7 @@ pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, b
     for (e, group) in cards.iter() {
         let amount = group.cards.len();
         let bounds = group.layout.get_bounds(amount);
-        
+
         let mut positioner = group.layout.position_cards(amount);
         let mut grid = group.layout.grid(amount);
         for (idx, c) in group.cards.iter().enumerate() {
@@ -104,7 +114,7 @@ pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, b
             commands
                 .entity(*c)
                 .insert(Transform::from_translation(position));
-            let (x,y) = group.layout.on_grid(idx);
+            let (x, y) = group.layout.on_grid(idx);
             grid.grid[x][y] = Some(*c);
         }
 
@@ -120,9 +130,10 @@ pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, b
                 ClickBox {
                     bounds: Rectangle::from_size(bounds.xy()),
                     active: true,
-                    on_click: menu_click
-                }
-            )).add_children(&group.cards);
+                    on_click: menu_click,
+                },
+            ))
+            .add_children(&group.cards);
 
         currenty -= bounds.y + buffer
     }
@@ -198,12 +209,13 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
     dbg!(click);
     let grid = world.get::<CardGrid>(entity).unwrap();
     let t = match world.get::<GlobalTransform>(entity) {
-        Some(t) => {
-            t.translation().xy()
+        Some(t) => t.translation().xy(),
+        None => {
+            println!("no global trans");
+            Vec2::splat(0.0)
         }
-        None => {println!("no global trans"); Vec2::splat(0.0)}
     };
-    
+
     let Some(grid_coord) = grid.map_world_to_grid_coord(click.position - t) else {
         return;
     };
@@ -213,17 +225,25 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
 
     dbg!(card);
 
-    type S<'w, 's> = (
+    type S<'w, 's, 'a> = (
         ResMut<'w, Selector>,
-        Commands<'w, 's>
+        Commands<'w, 's>,
+        Query<'w, 's, &'a ChildOf>,
     );
 
+    let g = world.get::<GlobalTransform>(card).unwrap();
+    let gtransoffset = g.translation();
+
     let mut j: SystemState<S> = SystemState::new(world);
-    let (mut s, mut c): S<'_, '_> = j.get_mut(world);
+    let (mut s, mut c, parents): S = j.get_mut(world);
     s.0 += 1;
     let followcount = s.0;
-    c.entity(card).insert((FollowMouse::new(vec2(-40.0, 0.0) * followcount as f32, followcount)));
+    c.entity(card).insert((
+        FollowMouse::new(vec2(-40.0, 0.0) * followcount as f32, followcount),
+        Transform::from_translation(gtransoffset.with_z(followcount as f32)),
+    ));
+    if let Ok(parent_group) = parents.get(card) {
+        c.entity(parent_group.0).detach_child(card);
+    }
     j.apply(world);
-
-    world.get_mut::<Transform>(card).and_then(|mut g| {g.translation.z = followcount as f32; None::<u8>});
 }
