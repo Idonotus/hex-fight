@@ -1,6 +1,10 @@
 use std::mem::swap;
 
-use bevy::{ecs::system::SystemState, input::{ButtonState, mouse::MouseButtonInput}, prelude::*};
+use bevy::{
+    ecs::system::SystemState,
+    input::{ButtonState, mouse::MouseButtonInput},
+    prelude::*,
+};
 
 pub struct MousePlugin;
 
@@ -13,8 +17,12 @@ pub struct ClickEvent {
 
 impl ClickEvent {
     fn new(bi: MouseButtonInput, pos: Vec2) -> Self {
-        Self { button: bi.button, state: bi.state, position: pos }
-    } 
+        Self {
+            button: bi.button,
+            state: bi.state,
+            position: pos,
+        }
+    }
 }
 
 #[derive(Component)]
@@ -32,7 +40,8 @@ struct ClickQueue {
 
 impl Plugin for MousePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, check_clicks).add_systems(FixedUpdate, follow_mouse);
+        app.add_systems(Update, check_clicks)
+            .add_systems(FixedUpdate, follow_mouse);
     }
 }
 
@@ -41,17 +50,16 @@ fn check_clicks(world: &mut World) {
         Query<'w, 's, &'a Window>,
         Query<'w, 's, (&'a Camera, &'a GlobalTransform)>,
         Query<'w, 's, (&'a mut ClickBox, &'a GlobalTransform, Entity)>,
-        MessageReader<'w, 's, MouseButtonInput>
+        MessageReader<'w, 's, MouseButtonInput>,
     );
     let mut sys: SystemState<S> = SystemState::new(world);
-    let (
-        windows,
-        cams,
-        boxes,
-        mut msgs): S = sys.get_mut(world);
+    let (windows, cams, boxes, mut msgs): S = sys.get_mut(world);
     let w: &Window = windows.single().unwrap();
     let (c, ctrans): (&Camera, &GlobalTransform) = cams.single().unwrap();
-    let Some(mpos) = w.cursor_position().and_then(|x| c.viewport_to_world_2d(ctrans, x).ok()) else {
+    let Some(mpos) = w
+        .cursor_position()
+        .and_then(|x| c.viewport_to_world_2d(ctrans, x).ok())
+    else {
         return;
     };
 
@@ -62,27 +70,38 @@ fn check_clicks(world: &mut World) {
         clicks.push(click.clone());
     }
 
-    if clicks.len() == 0 {return;}
-
+    if clicks.len() == 0 {
+        return;
+    }
 
     for (b, t, e) in boxes {
-        if !b.active {continue;}
+        if !b.active {
+            continue;
+        }
         let mut buttons: Vec<MouseButtonInput> = Vec::new();
         let pos = t.translation().xy();
         let relclick = mpos - pos;
 
         for click in clicks.iter() {
-            if relclick.x < 0.0 || relclick.y < 0.0 { continue; }
+            if relclick.x < 0.0 || relclick.y > 0.0 {
+                continue;
+            }
 
             let size = b.bounds.size();
 
-            if relclick.x > size.x || relclick.y > size.y { continue; }
+            if relclick.x > size.x || relclick.y < -size.y {
+                continue;
+            }
 
             buttons.push(click.clone())
         }
-        click_queue.push(ClickQueue { entity: e, clicks: buttons, on_click: b.on_click });
+        click_queue.push(ClickQueue {
+            entity: e,
+            clicks: buttons,
+            on_click: b.on_click,
+        });
     }
-    
+
     for q in click_queue {
         for c in q.clicks {
             (q.on_click)(world, q.entity, ClickEvent::new(c, mpos))
@@ -93,7 +112,7 @@ fn check_clicks(world: &mut World) {
 pub struct DelayQueue<T> {
     length: usize,
     head: usize,
-    pos_queue: Vec<Option<T>>
+    pos_queue: Vec<Option<T>>,
 }
 
 impl<T> DelayQueue<T> {
@@ -105,7 +124,7 @@ impl<T> DelayQueue<T> {
         Self {
             length: size,
             head: 0,
-            pos_queue
+            pos_queue,
         }
     }
 
@@ -125,22 +144,29 @@ impl<T> DelayQueue<T> {
 #[derive(Component)]
 pub struct FollowMouse {
     pub offset: Vec2,
-    pub pos_queue: DelayQueue<Vec2>
+    pub pos_queue: DelayQueue<Vec2>,
 }
 
 impl FollowMouse {
     pub fn new(offset: Vec2, delay: usize) -> Self {
         Self {
             offset,
-            pos_queue: DelayQueue::new(delay)
+            pos_queue: DelayQueue::new(delay),
         }
     }
 }
 
-fn follow_mouse(wq: Query<&Window>, cq: Query<(&Camera, &GlobalTransform)>, followers: Query<(&mut Transform, &mut FollowMouse, &GlobalTransform)>) {
+fn follow_mouse(
+    wq: Query<&Window>,
+    cq: Query<(&Camera, &GlobalTransform)>,
+    followers: Query<(&mut Transform, &mut FollowMouse, &GlobalTransform)>,
+) {
     let w: &Window = wq.single().unwrap();
     let (c, ctrans): (&Camera, &GlobalTransform) = cq.single().unwrap();
-    let Some(mpos) = w.cursor_position().and_then(|x| c.viewport_to_world_2d(ctrans, x).ok()) else {
+    let Some(mpos) = w
+        .cursor_position()
+        .and_then(|x| c.viewport_to_world_2d(ctrans, x).ok())
+    else {
         return;
     };
     for (mut t, mut m, g) in followers {
@@ -150,7 +176,9 @@ fn follow_mouse(wq: Query<&Window>, cq: Query<(&Camera, &GlobalTransform)>, foll
                 t.translation.x = p.x;
                 t.translation.y = p.y;
             }
-            _ => {continue;}
+            _ => {
+                continue;
+            }
         }
     }
 }

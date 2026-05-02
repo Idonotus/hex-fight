@@ -216,7 +216,9 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
         }
     };
 
-    let Some(grid_coord) = grid.map_world_to_grid_coord(click.position - t) else {
+    let Some(grid_coord) =
+        grid.map_world_to_grid_coord((click.position - t).reflect(vec2(0.0, 1.0)))
+    else {
         return;
     };
     let Some(card) = grid.get(grid_coord) else {
