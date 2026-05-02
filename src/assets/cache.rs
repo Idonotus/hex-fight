@@ -1,12 +1,11 @@
 use std::{
     any::TypeId,
     mem::swap,
-    path::{Path, PathBuf, absolute},
+    path::{Path, PathBuf},
 };
 
 use bevy::{
     asset::LoadState,
-    math::MismatchedUnitsError,
     platform::collections::HashMap,
     prelude::*,
     render::render_resource::TextureFormat,

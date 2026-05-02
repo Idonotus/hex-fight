@@ -3,10 +3,12 @@ use rand::RngCore;
 mod actions;
 pub mod cards;
 pub mod colors;
+pub mod prelude;
 mod scheduler;
 
 use cards::{AssignedBand, BandSet, RLEDeck, RandomDraw};
 use colors::{ColorComparison, build_dist_tolerance_eq, taxicab};
+use prelude::*;
 use scheduler::Scheduler;
 
 use crate::engine::cards::{BaseBand, Stacks};
@@ -72,11 +74,11 @@ where
         }
     }
 
-    pub fn get_player(&self, p: usize) -> &Player<Card> {
+    pub fn get_player(&self, p: PlayerId) -> &Player<Card> {
         return &self.players[p];
     }
 
-    pub fn draw(&mut self, player: usize) -> bool {
+    pub fn draw(&mut self, player: PlayerId) -> bool {
         match self.draw_card() {
             None => {
                 return false;
@@ -88,7 +90,7 @@ where
         }
     }
 
-    pub fn play_card(&mut self, player: usize, hand_number: usize) {
+    pub fn play_card(&mut self, player: PlayerId, hand_number: usize) {
         self.top_card = Some(self.players[player].hand.remove(hand_number));
     }
 

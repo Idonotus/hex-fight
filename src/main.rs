@@ -4,6 +4,7 @@ mod assets;
 mod cardmenu;
 mod content;
 mod engine;
+mod mouse;
 mod orchestrator;
 mod resizeplugin;
 
@@ -11,10 +12,11 @@ fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
+            mouse::MousePlugin,
             resizeplugin::ResizePlugin,
             orchestrator::GamePlugin,
         ))
-        .add_systems(Startup, (setup))
+        .add_systems(Startup, setup)
         .run();
 }
 

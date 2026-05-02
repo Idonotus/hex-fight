@@ -158,17 +158,9 @@ fn test_system(world: &mut World) {
         ))
         .add_children(&vec![playable_group, unplayable_group]);
 
-    let mut pgroup = commands.entity(playable_group.clone());
     for index in vstacks.into_iter().rev() {
-        let pcard = cards.remove(index);
-        playable_cards.push(pcard);
-        pgroup.add_child(pcard);
+        playable_cards.push(cards.remove(index));
     }
-
-    let mut ugroup = commands.entity(unplayable_group);
-    cards.iter().for_each(|c| {
-        ugroup.add_child(*c);
-    });
 
     let positionerbase = WidthLayout {
         width: 14,

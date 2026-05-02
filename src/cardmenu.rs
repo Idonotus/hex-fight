@@ -1,14 +1,22 @@
-use std::cmp::min;
-
 use bevy::{
-    ecs::{component::Component, entity::Entity, system::Commands},
-    math::{Vec2, Vec3, vec3},
+    ecs::{component::Component, entity::Entity, system::Commands, world::World},
+    math::{Vec2, Vec3, Vec3Swizzles, primitives::Rectangle, vec2, vec3},
     transform::components::Transform,
 };
+use std::{
+    cmp::min,
+    ops::Add,
+};
+
+use crate::mouse::{ClickBox, ClickEvent};
+
+mod origins;
 
 pub trait CardLayout: Sync + Send {
     fn top_left(&self, amount: usize) -> Vec3;
     fn get_bounds(&self, amount: usize) -> Vec3;
+    fn grid(&self, amount: usize) -> CardGrid;
+    fn on_grid(&self, idx: usize) -> (usize, usize);
     fn position_cards<'a>(&self, amount: usize) -> Box<dyn Iterator<Item = Vec3> + 'a>;
 }
 
@@ -69,6 +77,18 @@ impl CardLayout for WidthLayout {
             cur: 0,
         })
     }
+    fn grid(&self, amount: usize) -> CardGrid {
+        let x = min(self.width, amount);
+        let y = (amount / self.width + 1);
+        let mut grid = Vec::new();
+        for _ in 0..x {
+            grid.push(vec![None; y]);
+        }
+        CardGrid { widths: vec![self.card_size.x; x], heights: vec![self.card_size.y; y], grid }
+    }
+    fn on_grid(&self, idx: usize) -> (usize, usize) {
+        (idx % self.width, idx / self.width)
+    }
 }
 
 pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, buffer: f32) {
@@ -78,22 +98,92 @@ pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, b
         let bounds = group.layout.get_bounds(amount);
         let tleft = group.layout.top_left(amount);
 
-        commands
-            .entity(*e)
-            .insert(Transform::from_xyz(0.0, currenty - tleft.y, 0.0));
-
         let centerref = -tleft - vec3(bounds.x / 2.0, 0.0, 0.0);
         let mut positioner = group.layout.position_cards(amount);
-
-        for c in group.cards.iter() {
+        let mut grid = group.layout.grid(amount);
+        for (idx, c) in group.cards.iter().enumerate() {
             let position = positioner
                 .next()
                 .expect("Positioner ran out of positions when given the expected amount");
             commands
                 .entity(*c)
                 .insert(Transform::from_translation(position + centerref));
+            let (x,y) = group.layout.on_grid(idx);
+            grid.grid[x][y] = Some(*c);
         }
+
+        commands
+            .entity(*e)
+            .insert((
+                Transform::from_xyz(0.0, currenty - tleft.y, 0.0),
+                grid,
+                ClickBox {
+                    bounds: Rectangle::from_size(bounds.xy()),
+                    active: true,
+                    on_click: menu_click
+                }
+            )).add_children(&group.cards);
 
         currenty -= bounds.y + buffer
     }
+}
+
+#[derive(Component)]
+struct CardGrid {
+    widths: Vec<f32>,
+    heights: Vec<f32>,
+    grid: Vec<Vec<Option<Entity>>>,
+}
+
+fn find_class_belonging_to_item<T: Add<Output = T> + PartialOrd + Copy>(
+    root: T,
+    sizes: &Vec<T>,
+    reference: T,
+) -> Option<usize> {
+    if reference < root {
+        return None;
+    }
+    let mut cumulative = root;
+
+    for (idx, w) in sizes.iter().enumerate() {
+        cumulative = cumulative + *w;
+        if reference < cumulative {
+            return Some(idx);
+        }
+    }
+    return None;
+}
+
+impl CardGrid {
+    fn remove_at_position(&mut self, position: (usize, usize)) -> Option<Entity> {
+        self.grid[position.0][position.1].take()
+    }
+
+    fn map_screen_to_grid_coord(&self, position: Vec2) -> Option<(usize, usize)> {
+        let x = find_class_belonging_to_item::<f32>(0.0, &self.widths, position.x);
+        if let None = x {
+            return None;
+        }
+        let y = find_class_belonging_to_item::<f32>(0.0, &self.heights, position.y);
+        if let None = y {
+            return None;
+        }
+        return Some((x.unwrap(), y.unwrap()));
+    }
+
+    fn get_size(&self) -> Vec2 {
+        vec2(self.widths.iter().sum(), self.heights.iter().sum())
+    }
+
+    fn new(widths: Vec<f32>, heights: Vec<f32>, grid: Vec<Vec<Option<Entity>>>) -> Self {
+        Self {
+            widths,
+            heights,
+            grid,
+        }
+    }
+}
+
+fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
+    
 }
