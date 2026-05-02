@@ -73,7 +73,7 @@ impl<'a> RequestContext<'a> {
         self.references[address] = Some(AssetReference::Texture(texture));
     }
 
-    pub fn request_palette(&mut self, palette: Vec<RGBA>, address: usize) -> () {
+    pub fn request_palette(&mut self, palette: &[RGBA], address: usize) -> () {
         let image = self.images.get_mut(&self.palettes.get_image()).unwrap();
         self.references[address] = Some(AssetReference::Palette(
             self.palettes.add_palette(image, palette),

@@ -33,8 +33,7 @@ pub mod batch {
             world::World,
         },
         image::Image,
-        math::{Vec3, primitives::Rectangle},
-        transform::components::Transform,
+        math::{primitives::Rectangle},
     };
 
     use super::{
@@ -75,7 +74,7 @@ pub mod batch {
     ) -> Vec<(&'a C, Vec<AssetReference>)> {
         let mut references = Vec::new();
         for c in cards {
-            context.fill(c.get_asset_count());
+            context.fill(c.get_asset_count()).unwrap();
             context = c.request_assets(context);
             references.push((c, context.pop().into_iter().map(|r| r.unwrap()).collect()));
         }

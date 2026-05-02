@@ -2,7 +2,7 @@ use bevy::{
     ecs::{
         component::Component,
         entity::Entity,
-        system::{Commands, SystemState, command},
+        system::{Commands, SystemState},
         world::World,
     },
     input::ButtonState,
@@ -12,7 +12,7 @@ use bevy::{
 };
 use std::{cmp::min, ops::Add};
 
-use crate::mouse::{ClickBox, ClickEvent, DelayQueue, FollowMouse};
+use crate::mouse::{ClickBox, ClickEvent, FollowMouse};
 
 mod origins;
 

@@ -156,7 +156,7 @@ impl Assetable for SimpleCard {
 
         let borders = if c.get_value() > 0.5 { BLACK } else { WHITE };
 
-        context.request_palette(vec![borders, c.into()], 1);
+        context.request_palette(&[borders, c.into()], 1);
 
         let CardValue::Numeral(n) = self.get_value() else {
             return context;

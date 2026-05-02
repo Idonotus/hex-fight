@@ -153,7 +153,7 @@ fn test_system(world: &mut World) {
             Selected {},
             Transform::from_scale(Vec3::splat(1.0)),
         ))
-        .add_children(&vec![playable_group, unplayable_group]);
+        .add_children(&[playable_group, unplayable_group]);
 
     for index in vstacks.into_iter().rev() {
         playable_cards.push(cards.remove(index));

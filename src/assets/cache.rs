@@ -1,7 +1,7 @@
 use std::{
     any::TypeId,
     mem::swap,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use bevy::{
@@ -42,7 +42,7 @@ pub enum Asset {
     AtlasTexture(Handle<Image>, Handle<TextureAtlasLayout>, usize),
 }
 
-enum AssetIndexItem {
+pub enum AssetIndexItem {
     Texture {
         location: PathBuf,
         overrides: Option<DescriptorOverride>,
@@ -249,7 +249,6 @@ impl AssetCache {
                 let mut children = Vec::new();
                 let JsonValue::Array(ref v) = obj["names"] else {
                     panic!("child names");
-                    return;
                 };
                 for (idx, c) in v.iter().enumerate() {
                     let cname = c.as_str().unwrap().to_owned();

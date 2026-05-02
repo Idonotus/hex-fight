@@ -1,5 +1,4 @@
 use std::{
-    env::current_dir,
     fs::File,
     io::Read,
     path::{PathBuf, absolute},
@@ -25,7 +24,9 @@ pub fn load_pack_index(path: PathBuf, cache: &mut AssetCache) -> Result<(), &'st
         return Err("Error opening file");
     };
     let mut buffer = String::new();
-    file.read_to_string(&mut buffer);
+    let Ok(_) = file.read_to_string(&mut buffer) else {
+        return Err("Error reading file");
+    };
 
     let Ok(j) = json::parse(&buffer) else {
         return Err("Error parsing file");

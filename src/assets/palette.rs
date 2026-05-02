@@ -9,9 +9,9 @@ pub type PaletteReference = UVec2;
 pub type RGBA = [u8; 4];
 
 pub trait PaletteAtlas {
-    fn add_palette(&mut self, image: &mut Image, palette: Vec<RGBA>) -> PaletteReference {
+    fn add_palette(&mut self, image: &mut Image, palette: &[RGBA]) -> PaletteReference {
         let (start, end) = self.allocate(palette.len());
-        let data: Vec<u8> = palette.into_iter().flatten().collect();
+        let data: Vec<u8> = palette.iter().flatten().copied().collect();
         self.push_data(image, data, start, end);
         return self.get_ref_from_idx(start);
     }
