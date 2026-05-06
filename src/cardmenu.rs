@@ -22,6 +22,7 @@ pub trait CardLayout: Sync + Send {
     fn grid(&self, amount: usize) -> CardGrid;
     fn on_grid(&self, idx: usize) -> (usize, usize);
     fn position_cards<'a>(&self, amount: usize) -> Box<dyn Iterator<Item = Vec3> + 'a>;
+    fn card_size(&self) -> Vec3;
 }
 
 #[derive(Component)]
@@ -57,7 +58,7 @@ impl Iterator for WidthPositioner {
         self.cur += 1;
         return Some(Vec3 {
             x: gridx * self.layout.card_size.x,
-            y: gridy * -self.layout.card_size.y,
+            y: gridy * self.layout.card_size.y,
             z: gridx * self.layout.card_size.z,
         });
     }
@@ -97,13 +98,23 @@ impl CardLayout for WidthLayout {
     fn on_grid(&self, idx: usize) -> (usize, usize) {
         (idx % self.width, idx / self.width)
     }
+    fn card_size(&self) -> Vec3 {
+        self.card_size
+    }
 }
+
+static REFLECT_Y: Vec3 = Vec3 {
+    x: 1.0,
+    y: -1.0,
+    z: 0.0
+};
 
 pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, buffer: f32) {
     let mut currenty = 0.0;
     for (e, group) in cards.iter() {
         let amount = group.cards.len();
         let bounds = group.layout.get_bounds(amount);
+        let card_center_offset = group.layout.card_size().with_z(0.0) / 2.0;
 
         let mut positioner = group.layout.position_cards(amount);
         let mut grid = group.layout.grid(amount);
@@ -113,14 +124,14 @@ pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, b
                 .expect("Positioner ran out of positions when given the expected amount");
             commands
                 .entity(*c)
-                .insert(Transform::from_translation(position));
+                .insert(Transform::from_translation((position + card_center_offset) * REFLECT_Y));
             let (x, y) = group.layout.on_grid(idx);
             grid.grid[x][y] = Some(*c);
         }
 
         let tleft = group.layout.top_left(amount);
 
-        let centerref = -tleft - vec3(bounds.x / 2.0, -currenty, 0.0);
+        let centerref = -tleft - vec3(bounds.x / 2.0, -currenty, 0.0) - card_center_offset * REFLECT_Y;
 
         commands
             .entity(*e)
