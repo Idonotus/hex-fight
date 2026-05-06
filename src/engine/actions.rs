@@ -146,15 +146,17 @@ impl ResponseContext {
 	}
 
 	fn borrow_item(&mut self, reference: usize) -> Result<ContextItem, &str> {
-		let item = replace(&mut self.context_items[reference], None);
-		match item {
+		match self.context_items[reference].take() {
 			Some(context) => Ok(context),
 			None => Err("Context item has already been borrowed")
 		}
 	}
 
 	fn return_item(&mut self, reference: usize, item: ContextItem) -> () {
-		replace(&mut self.context_items[reference], Some(item));
+		if let None = self.context_items[reference] {
+			panic!()
+		}
+		self.context_items[reference] = Some(item);
 	}
 }
 
