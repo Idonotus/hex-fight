@@ -1,4 +1,5 @@
 use bevy::{
+    asset::VisitAssetDependencies,
     ecs::{
         component::Component,
         entity::Entity,
@@ -15,6 +16,7 @@ use std::{cmp::min, ops::Add};
 use crate::mouse::{ClickBox, ClickEvent, FollowMouse};
 
 mod origins;
+mod selection;
 
 pub trait CardLayout: Sync + Send {
     fn top_left(&self, amount: usize) -> Vec3;
@@ -93,6 +95,7 @@ impl CardLayout for WidthLayout {
             widths: vec![self.card_size.x; x],
             heights: vec![self.card_size.y; y],
             grid,
+            card_size: self.card_size,
         }
     }
     fn on_grid(&self, idx: usize) -> (usize, usize) {
@@ -106,7 +109,7 @@ impl CardLayout for WidthLayout {
 static REFLECT_Y: Vec3 = Vec3 {
     x: 1.0,
     y: -1.0,
-    z: 0.0
+    z: 0.0,
 };
 
 pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, buffer: f32) {
@@ -122,16 +125,17 @@ pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, b
             let position = positioner
                 .next()
                 .expect("Positioner ran out of positions when given the expected amount");
-            commands
-                .entity(*c)
-                .insert(Transform::from_translation((position + card_center_offset) * REFLECT_Y));
+            commands.entity(*c).insert(Transform::from_translation(
+                (position + card_center_offset) * REFLECT_Y,
+            ));
             let (x, y) = group.layout.on_grid(idx);
             grid.grid[x][y] = Some(*c);
         }
 
         let tleft = group.layout.top_left(amount);
 
-        let centerref = -tleft - vec3(bounds.x / 2.0, -currenty, 0.0) - card_center_offset * REFLECT_Y;
+        let centerref =
+            -tleft - vec3(bounds.x / 2.0, -currenty, 0.0) - card_center_offset * REFLECT_Y;
 
         commands
             .entity(*e)
@@ -155,6 +159,7 @@ struct CardGrid {
     widths: Vec<f32>,
     heights: Vec<f32>,
     grid: Vec<Vec<Option<Entity>>>,
+    card_size: Vec3,
 }
 
 fn find_class_belonging_to_item<T: Add<Output = T> + PartialOrd + Copy>(
@@ -181,7 +186,14 @@ impl CardGrid {
         self.grid[position.0][position.1].take()
     }
 
-    fn map_world_to_grid_coord(&self, position: Vec2) -> Option<(usize, usize)> {
+    fn map_grid_to_local(&self, position: (usize, usize)) -> Vec2 {
+        Vec2 {
+            x: self.widths[0..position.0].iter().sum(),
+            y: self.heights[0..position.1].iter().sum(),
+        }
+    }
+
+    fn map_world_to_grid(&self, position: Vec2) -> Option<(usize, usize)> {
         let x = find_class_belonging_to_item::<f32>(0.0, &self.widths, position.x);
         if let None = x {
             return None;
@@ -197,11 +209,17 @@ impl CardGrid {
         vec2(self.widths.iter().sum(), self.heights.iter().sum())
     }
 
-    fn new(widths: Vec<f32>, heights: Vec<f32>, grid: Vec<Vec<Option<Entity>>>) -> Self {
+    fn new(
+        widths: Vec<f32>,
+        heights: Vec<f32>,
+        grid: Vec<Vec<Option<Entity>>>,
+        card_size: Vec3,
+    ) -> Self {
         Self {
             widths,
             heights,
             grid,
+            card_size,
         }
     }
 
@@ -210,14 +228,11 @@ impl CardGrid {
     }
 }
 
-#[derive(Resource, Default)]
-pub struct Selector(usize);
-
 fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
     if click.state != ButtonState::Pressed || click.button != MouseButton::Left {
         return;
     }
-    dbg!(click);
+
     let grid = world.get::<CardGrid>(entity).unwrap();
     let t = match world.get::<GlobalTransform>(entity) {
         Some(t) => t.translation().xy(),
@@ -227,19 +242,18 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
         }
     };
 
-    let Some(grid_coord) =
-        grid.map_world_to_grid_coord((click.position - t).reflect(vec2(0.0, 1.0)))
+    let Some(grid_coord) = grid.map_world_to_grid((click.position - t).reflect(vec2(0.0, 1.0)))
     else {
         return;
     };
+    let tleft_box = grid.map_grid_to_local(grid_coord);
+    let card_size = grid.card_size;
     let Some(card) = grid.get(grid_coord) else {
         return;
     };
 
-    dbg!(card);
-
     type S<'w, 's, 'a> = (
-        ResMut<'w, Selector>,
+        ResMut<'w, selection::Selections>,
         Commands<'w, 's>,
         Query<'w, 's, &'a ChildOf>,
     );
@@ -249,14 +263,50 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
 
     let mut j: SystemState<S> = SystemState::new(world);
     let (mut s, mut c, parents): S = j.get_mut(world);
-    s.0 += 1;
-    let followcount = s.0;
-    c.entity(card).insert((
-        FollowMouse::new(vec2(-40.0, 0.0) * followcount as f32, followcount),
-        Transform::from_translation(gtransoffset.with_z(followcount as f32)),
-    ));
-    if let Ok(parent_group) = parents.get(card) {
-        c.entity(parent_group.0).detach_child(card);
+    // s.0 += 1;
+    // let followcount = s.0;
+    match s.find(card) {
+        Some(idx) => {
+            s.remove(idx);
+            for (i, e) in s.get_held_cards().iter().enumerate() {
+                if i < idx {
+                    continue;
+                }
+                set_follow_index(&mut c, *e, i + 1);
+            }
+            c.entity(entity).add_child(card);
+
+            c.entity(card).remove::<FollowMouse>().insert(
+                (Transform::from_translation(Vec3 {
+                    x: (tleft_box.x + card_size.x / 2.0),
+                    y: -(tleft_box.y + card_size.y / 2.0),
+                    z: grid_coord.0 as f32 * card_size.z,
+                })),
+            );
+        }
+        None => {
+            if s.is_full() {
+                return;
+            }
+            s.push(card);
+            c.entity(entity)
+                .insert(Transform::from_translation(gtransoffset));
+            if let Ok(parent_group) = parents.get(card) {
+                c.entity(parent_group.0).detach_child(card);
+            }
+            set_follow_index(&mut c, card, s.get_held_cards().len());
+        }
     }
     j.apply(world);
+}
+
+fn set_follow_index(commands: &mut Commands, card: Entity, idx: usize) {
+    commands
+        .entity(card)
+        .insert((FollowMouse::new(vec2(-40.0, 0.0) * idx as f32, idx),));
+}
+
+pub fn create_menu_resources(mut commands: Commands) {
+    commands.insert_resource(selection::Selections::new(None));
+    commands.insert_resource(origins::CardUIOrigins::new());
 }

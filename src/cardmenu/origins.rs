@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{entity::Entity, resource::Resource},
+    ecs::{entity::Entity, resource::Resource, system::Commands},
     platform::collections::HashMap,
 };
 
@@ -19,14 +19,14 @@ pub struct CardUIOrigins {
 }
 
 impl CardUIOrigins {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             origins: HashMap::new(),
             integrity_map: HashMap::new(),
         }
     }
 
-    fn register_card(&mut self, entity: Entity, origin: CardOrigin) {
+    pub fn register_card(&mut self, entity: Entity, origin: CardOrigin) {
         self.origins.insert(entity, origin);
         if self.integrity_map.contains_key(&origin) {
             self.integrity_map
@@ -38,7 +38,7 @@ impl CardUIOrigins {
         }
     }
 
-    fn deregister_card(&mut self, entity: &Entity) -> Option<CardOrigin> {
+    pub fn deregister_card(&mut self, entity: &Entity) -> Option<CardOrigin> {
         let origin = self.origins.remove(entity);
         match origin {
             Some(o) => {
@@ -64,11 +64,11 @@ impl CardUIOrigins {
         return origin;
     }
 
-    fn get_origin(&mut self, entity: &Entity) -> Option<CardOrigin> {
+    pub fn get_origin(&mut self, entity: &Entity) -> Option<CardOrigin> {
         self.origins.get(entity).copied()
     }
 
-    fn delete_origin(&mut self, origin: &CardOrigin) -> Vec<Entity> {
+    pub fn delete_origin(&mut self, origin: &CardOrigin) -> Vec<Entity> {
         match self.integrity_map.remove(origin) {
             Some(entities) => {
                 for e in entities.iter() {
