@@ -5,7 +5,7 @@ use crate::{
         batch::render_cards, cache::AssetInterface, cardrender::AssetableGroup, loader,
         palette::PaletteAtlas,
     },
-    cardmenu::{CardGroup, WidthLayout, display_groups},
+    cardmenu::{CardGroup, WidthLayout, display_groups, origins::CardUIOrigins},
     engine::cards::{DeckId, does_stack},
 };
 
@@ -130,8 +130,9 @@ fn test_system(world: &mut World) {
         .iter()
         .map(|c| c.clone())
         .collect();
+    let cur_turn: usize = game.order.get_turn();
 
-    let vstacks = game.get_valid_stacks_for_player(game.order.get_turn(), &|base, head| {
+    let vstacks = game.get_valid_stacks_for_player(cur_turn, &|base, head| {
         does_stack(base, head, &game.comparison)
     });
 
@@ -140,6 +141,15 @@ fn test_system(world: &mut World) {
         &cardinfo,
         Rectangle::from_size(Vec2 { x: 90.0, y: 140.0 }),
     );
+
+    let (mut origins,) = SystemState::<(ResMut<CardUIOrigins>,)>::new(world).get_mut(world);
+
+    for idx in 0..cardinfo.len() {
+        origins.register_card(
+            cards[idx],
+            crate::cardmenu::origins::CardOrigin::Hand(cur_turn, idx),
+        );
+    }
 
     let mut commands = world.commands();
 

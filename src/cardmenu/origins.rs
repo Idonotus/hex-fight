@@ -6,7 +6,7 @@ use bevy::{
 use crate::engine::prelude::*;
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Eq)]
-enum CardOrigin {
+pub enum CardOrigin {
     Hand(PlayerId, usize),
     Deck(CardId),
     TopCard,

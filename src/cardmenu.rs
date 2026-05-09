@@ -15,8 +15,8 @@ use std::{cmp::min, ops::Add};
 
 use crate::mouse::{ClickBox, ClickEvent, FollowMouse};
 
-mod origins;
-mod selection;
+pub mod origins;
+pub mod selection;
 
 pub trait CardLayout: Sync + Send {
     fn top_left(&self, amount: usize) -> Vec3;
