@@ -62,22 +62,17 @@ impl Display for Color {
     }
 }
 
-pub type ColorComparison = Box<dyn Fn(Color, Color) -> bool>;
+pub type ColorComparison<'a> = Box<dyn Fn(Color, Color) -> bool + 'a>;
 pub type ColorDifferenceFn<T> = fn(Color, Color) -> T;
-pub type ColorDistanceFn = fn(Color, Color) -> u16;
 
-pub fn exact_color_eq() -> ColorComparison {
+pub fn exact_color_eq() -> ColorComparison<'static> {
     Box::new(|a: Color, b: Color| -> bool { a == b })
 }
 
-pub fn build_diff_tolerance_eq<T: PartialOrd + 'static>(
-    difference_func: ColorDifferenceFn<T>,
+pub fn build_compare_tolerance<'a, T: PartialOrd + 'a>(
+    distance_func: ColorDifferenceFn<T>,
     tolorance: T,
-) -> ColorComparison {
-    return Box::new(move |a: Color, b: Color| difference_func(a, b) <= tolorance);
-}
-
-pub fn build_dist_tolerance_eq(distance_func: ColorDistanceFn, tolorance: u16) -> ColorComparison {
+) -> ColorComparison<'a> {
     return Box::new(move |a: Color, b: Color| distance_func(a, b) <= tolorance);
 }
 

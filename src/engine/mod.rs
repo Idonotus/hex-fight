@@ -7,7 +7,7 @@ pub mod prelude;
 mod scheduler;
 
 use cards::{AssignedBand, BandSet, RLEDeck, RandomDraw};
-use colors::{ColorComparison, build_dist_tolerance_eq, taxicab};
+use colors::{ColorComparison, build_compare_tolerance, taxicab};
 use prelude::*;
 use scheduler::Scheduler;
 
@@ -34,7 +34,7 @@ where
     pub order: Scheduler<'a>,
 
     pub top_card: Option<Card>,
-    pub comparison: ColorComparison,
+    pub comparison: ColorComparison<'a>,
 }
 
 impl<'a, Band, Card> Game<'a, Band, Card>
@@ -60,7 +60,7 @@ where
             order: Scheduler::new(player_count),
             top_card: None,
             rng,
-            comparison: build_dist_tolerance_eq(taxicab, 64),
+            comparison: build_compare_tolerance(taxicab, 64),
         }
     }
 
