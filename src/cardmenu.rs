@@ -289,7 +289,7 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
                 return;
             }
             s.push(card);
-            c.entity(entity)
+            c.entity(card)
                 .insert(Transform::from_translation(gtransoffset));
             if let Ok(parent_group) = parents.get(card) {
                 c.entity(parent_group.0).detach_child(card);
