@@ -1,2 +1,2 @@
-pub type PlayerId = usize;
-pub type CardId = u64;
+pub struct PlayerId(usize);
+pub use super::cards::{AssignedBand, BaseBand, DeckCapacity, DeckId as CardId, DeckSize, Stacks};
