@@ -6,7 +6,7 @@ use crate::{
         palette::PaletteAtlas,
     },
     cardmenu::{CardGroup, WidthLayout, display_groups, origins::CardUIOrigins},
-    engine::cards::{DeckId, does_stack},
+    engine::{cards::does_stack, prelude::*},
 };
 
 use super::{
@@ -18,7 +18,7 @@ use super::{
     content::basic_cards::{AllColorBand, AllColorPlugin},
     engine::{
         Game,
-        cards::{AssignedBand, BandSet, CardValue, Stacks},
+        cards::CardValue,
         colors::{Color, ColorComparison},
     },
 };
@@ -77,7 +77,7 @@ impl<'a> Stacks for CardBox<'a> {
 impl<T: Stacks + Assetable + Clone + Sync + Send> Card for T {}
 
 impl<'a> AssignedBand<'a, CardBox<'a>> for AllColorBand {
-    fn generate_card(&mut self, c_id: DeckId) -> CardBox<'a> {
+    fn generate_card(&mut self, c_id: CardId) -> CardBox<'a> {
         Box::new(self.generate_card(c_id))
     }
 }
@@ -87,6 +87,8 @@ struct ScrollMenu {}
 
 #[derive(Component)]
 struct Selected {}
+
+struct CardMenuContainer(crate::cardmenu::origins::CardOrigin);
 
 const PALETTE_SIZE: UVec2 = UVec2 { x: 800, y: 400 };
 const CARD_SIZE: Vec3 = Vec3 {
@@ -130,11 +132,11 @@ fn test_system(world: &mut World) {
         .iter()
         .map(|c| c.clone())
         .collect();
-    let cur_turn: usize = game.order.get_turn();
+    let cur_turn: PlayerId = game.order.get_turn();
 
-    let vstacks = game.get_valid_stacks_for_player(cur_turn, &|base, head| {
-        does_stack(base, head, &game.comparison)
-    });
+    let base = game.top_card.as_ref().unwrap();
+    let vstacks =
+        game.get_filter_for_player(cur_turn, &|head| does_stack(base, head, &game.comparison));
 
     let mut cards = render_cards(
         world,

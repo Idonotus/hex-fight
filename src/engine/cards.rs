@@ -7,7 +7,7 @@ use crate::engine::colors::{Color, ColorComparison};
 
 // Macro?
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct DeckId(pub u64);
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct DeckCapacity(pub u64);
@@ -367,7 +367,7 @@ impl<'a, C> AssignedBand<'a, C> for Box<dyn AssignedBand<'a, C> + 'a> {
     }
 }
 
-pub(crate) struct BandSet<'a, Band, C>(Vec<Band>, PhantomData<&'a C>)
+pub struct BandSet<'a, Band, C>(Vec<Band>, PhantomData<&'a C>)
 where
     Band: AssignedBand<'a, C>;
 

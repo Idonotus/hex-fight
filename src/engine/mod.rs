@@ -6,7 +6,7 @@ pub mod colors;
 pub mod prelude;
 mod scheduler;
 
-use cards::{AssignedBand, BandSet, RLEDeck, RandomDraw};
+use cards::{RLEDeck, RandomDraw};
 use colors::{ColorComparison, build_compare_tolerance, taxicab};
 use prelude::*;
 use scheduler::Scheduler;
@@ -75,7 +75,7 @@ where
     }
 
     pub fn get_player(&self, p: PlayerId) -> &Player<Card> {
-        return &self.players[p];
+        return &self.players[*p];
     }
 
     pub fn draw(&mut self, player: PlayerId) -> bool {
@@ -84,14 +84,14 @@ where
                 return false;
             }
             Some(card) => {
-                self.players[player].hand.push(card);
+                self.players[*player].hand.push(card);
                 return true;
             }
         }
     }
 
     pub fn play_card(&mut self, player: PlayerId, hand_number: usize) {
-        self.top_card = Some(self.players[player].hand.remove(hand_number));
+        self.top_card = Some(self.players[*player].hand.remove(hand_number));
     }
 
     pub fn draw_card(&mut self) -> Option<Card> {
@@ -101,15 +101,14 @@ where
         }
     }
 
-    pub fn get_valid_stacks_for_player(
+    pub fn get_filter_for_player(
         &self,
-        player: usize,
-        compare: &dyn Fn(&Card, &Card) -> bool,
+        player: PlayerId,
+        compare: &dyn Fn(&Card) -> bool,
     ) -> Vec<usize> {
-        let cmp = self.top_card.as_ref().unwrap();
-        return Vec::from_iter(self.players[player].hand.iter().enumerate().filter_map(
+        return Vec::from_iter(self.players[*player].hand.iter().enumerate().filter_map(
             |(idx, card)| {
-                if compare(cmp, card) {
+                if compare(card) {
                     return Some(idx);
                 }
                 return None;
