@@ -6,7 +6,7 @@ use crate::engine::{
 };
 
 #[derive(Copy, Clone)]
-pub struct AllColorPlugin {}
+pub struct AllColorPlugin;
 pub struct AllColorBand {
     numeral: u8,
     plugin: AllColorPlugin,
@@ -16,7 +16,7 @@ impl AllColorBand {
     pub fn new(n: u8) -> Self {
         Self {
             numeral: n,
-            plugin: AllColorPlugin {},
+            plugin: AllColorPlugin,
         }
     }
 

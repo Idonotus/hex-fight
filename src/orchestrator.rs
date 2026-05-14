@@ -1,11 +1,13 @@
-use std::sync::Arc;
+use std::{hash::Hash, sync::Arc};
 
 use crate::{
     assets::{
-        batch::render_cards, cache::AssetInterface, cardrender::AssetableGroup, loader,
-        palette::PaletteAtlas,
+        batch::render_cards, cache::AssetInterface, cardrender::AssetableGroup, loader, render_card,
     },
-    cardmenu::{CardGroup, WidthLayout, display_groups, origins::CardUIOrigins},
+    cardmenu::{
+        CardGroup, WidthLayout, display_groups,
+        origins::{CardUIOrigins, MenuOrigin},
+    },
     engine::{cards::does_stack, prelude::*},
 };
 
@@ -19,10 +21,12 @@ use super::{
     engine::{
         Game,
         cards::CardValue,
-        colors::{Color, ColorComparison},
+        colors::{Color as CardColor, ColorComparison},
     },
 };
-use bevy::{ecs::system::SystemState, input::mouse::MouseWheel, prelude::*};
+use bevy::{
+    color::palettes::basic, ecs::system::SystemState, input::mouse::MouseWheel, prelude::*,
+};
 use dyn_clone::DynClone;
 
 trait Card: Stacks + Assetable + DynClone + Send + Sync {}
@@ -64,7 +68,7 @@ impl<'a> Stacks for CardBox<'a> {
         self.as_ref().can_stack_onto(base, color_comparason)
     }
 
-    fn get_color(&self) -> Option<Color> {
+    fn get_color(&self) -> Option<CardColor> {
         self.as_ref().get_color()
     }
     fn get_value(&self) -> CardValue {
@@ -87,8 +91,6 @@ struct ScrollMenu {}
 
 #[derive(Component)]
 struct Selected {}
-
-struct CardMenuContainer(crate::cardmenu::origins::CardOrigin);
 
 const PALETTE_SIZE: UVec2 = UVec2 { x: 800, y: 400 };
 const CARD_SIZE: Vec3 = Vec3 {
@@ -134,17 +136,19 @@ fn test_system(world: &mut World) {
         .collect();
     let cur_turn: PlayerId = game.order.get_turn();
 
-    let base = game.top_card.as_ref().unwrap();
+    let base = game.top_card.clone().unwrap();
     let vstacks =
-        game.get_filter_for_player(cur_turn, &|head| does_stack(base, head, &game.comparison));
+        game.get_filter_for_player(cur_turn, &|head| does_stack(&base, head, &game.comparison));
 
-    let mut cards = render_cards(
-        world,
-        &cardinfo,
-        Rectangle::from_size(Vec2 { x: 90.0, y: 140.0 }),
-    );
+    let top_card = render_card(world, &base, Rectangle::from_size(CARD_SIZE.xy()));
+    let mut cards = render_cards(world, &cardinfo, Rectangle::from_size(CARD_SIZE.xy()));
 
-    let (mut origins,) = SystemState::<(ResMut<CardUIOrigins>,)>::new(world).get_mut(world);
+    let (mut origins, mut meshes, mut colors) = SystemState::<(
+        ResMut<CardUIOrigins>,
+        ResMut<Assets<Mesh>>,
+        ResMut<Assets<ColorMaterial>>,
+    )>::new(world)
+    .get_mut(world);
 
     for idx in 0..cardinfo.len() {
         origins.register_card(
@@ -161,11 +165,27 @@ fn test_system(world: &mut World) {
 
     commands
         .spawn((
+            MenuOrigin::Hand(cur_turn),
             ScrollMenu {},
             Selected {},
             Transform::from_scale(Vec3::splat(1.0)),
         ))
         .add_children(&[playable_group, unplayable_group]);
+    commands
+        .spawn((
+            Visibility::default(),
+            ScrollMenu {},
+            Selected {},
+            MenuOrigin::TopCard,
+            Transform::from_translation(Vec3 {
+                x: 0.0,
+                y: 210.0,
+                z: 0.0,
+            })
+            .with_scale(Vec3::splat(1.0)),
+        ))
+        .add_children(&[top_card]);
+    commands.entity(top_card).insert(Transform::default());
 
     for index in vstacks.into_iter().rev() {
         playable_cards.push(cards.remove(index));

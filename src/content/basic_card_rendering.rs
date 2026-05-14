@@ -54,7 +54,7 @@ impl Material2d for RecolourMaterial {
 
 static CARD_BASE: &str = "card-base";
 static CARD_FACE: &str = "face_";
-const APLUGIN: AllColorPlugin = AllColorPlugin {};
+const APLUGIN: AllColorPlugin = AllColorPlugin;
 
 impl Into<RGBA> for CardColor {
     fn into(self) -> RGBA {

@@ -22,7 +22,7 @@ pub mod loader;
 pub mod palette;
 
 #[derive(Component)]
-struct UICard {}
+pub struct UICard;
 
 pub mod batch {
     use bevy::{
@@ -33,7 +33,7 @@ pub mod batch {
             world::World,
         },
         image::Image,
-        math::{primitives::Rectangle},
+        math::primitives::Rectangle,
     };
 
     use super::{
@@ -63,9 +63,7 @@ pub mod batch {
     }
 
     fn generate_bases(mut commands: Commands, amount: usize) -> Vec<Entity> {
-        return (0..amount)
-            .map(|_| commands.spawn(UICard {}).id())
-            .collect();
+        return (0..amount).map(|_| commands.spawn(UICard).id()).collect();
     }
 
     fn request_assets<'a, C: Assetable>(
@@ -105,21 +103,15 @@ pub mod batch {
     }
 }
 
-pub fn render_card<C: Assetable>(
-    world: &mut World,
-    card: &C,
-    position: Vec3,
-    card_size: Rectangle,
-) -> Entity {
+pub fn render_card<C: Assetable>(world: &mut World, card: &C, card_size: Rectangle) -> Entity {
     let mut commands = world.commands();
-    let entity = commands
-        .spawn((UICard {}, Transform::from_translation(position)))
-        .id();
+    let entity = commands.spawn(UICard).id();
 
     let (mut assets, images) =
         SystemState::<(ResMut<AssetCache>, ResMut<Assets<Image>>)>::new(world).get_mut(world);
-
-    let mut context = card.request_assets(RequestContext::new(&mut assets.palette, images));
+    let mut context = RequestContext::new(&mut assets.palette, images);
+    context.fill(card.get_asset_count()).unwrap();
+    context = card.request_assets(context);
     let ref_list = context.pop().into_iter().map(|a| a.unwrap()).collect();
     let card_assets = assets.get_assets(ref_list);
 

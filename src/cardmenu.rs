@@ -135,7 +135,7 @@ pub fn display_groups(mut commands: Commands, cards: Vec<(Entity, CardGroup)>, b
         let tleft = group.layout.top_left(amount);
 
         let centerref =
-            -tleft - vec3(bounds.x / 2.0, -currenty, 0.0) - card_center_offset * REFLECT_Y;
+            -tleft - vec3(bounds.x / 2.0, -currenty, 0.0) - card_center_offset.zyz() * REFLECT_Y;
 
         commands
             .entity(*e)

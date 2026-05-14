@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{entity::Entity, resource::Resource, system::Commands},
+    ecs::{component::Component, entity::Entity, resource::Resource, system::Commands},
     platform::collections::HashMap,
 };
 
@@ -9,6 +9,13 @@ use crate::engine::prelude::*;
 pub enum CardOrigin {
     Hand(PlayerId, usize),
     Deck(CardId),
+    TopCard,
+}
+
+#[derive(Component, Hash, PartialEq, Eq)]
+pub enum MenuOrigin {
+    Hand(PlayerId),
+    Deck,
     TopCard,
 }
 
