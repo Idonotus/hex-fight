@@ -32,3 +32,9 @@
   - [ ] Card info system
   - [ ] Colo(u)r blindness options
   - [ ] Hand filtering
+
+# The end of the road
+Since there is no ABI for both rust and bevy, the plugin system cannot be extrapolated. Unless... a new engine is made so that we can do this. That will never happen in a normal amount of time so we can only hope.
+
+## Last exit
+Perhaps there is some way to provide our own interface with the engine anyway and have that be ABI stable. This is likely a problem for later though
