@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::engine::{
-    cards::{AssignedBand, BaseBand, CardValue, DeckCapacity, DeckId, Stacks},
-    colors::Color,
-};
+use manaengine::prelude::*;
 
 #[derive(Copy, Clone)]
 pub struct AllColorPlugin;
@@ -24,7 +21,7 @@ impl AllColorBand {
         return self.plugin;
     }
 
-    pub fn generate_card(&mut self, card_id: DeckId) -> SimpleCard {
+    pub fn generate_card(&mut self, card_id: CardId) -> SimpleCard {
         let c_id = *card_id;
         let (c_id, r) = (c_id / 256, (c_id % 256) as u8);
         let (c_id, g) = (c_id / 256, (c_id % 256) as u8);
@@ -33,7 +30,7 @@ impl AllColorBand {
             (c_id % 256).try_into().unwrap(),
         );
 
-        return SimpleCard::new(Color { r, g, b }, value);
+        return SimpleCard::new(CardColor { r, g, b }, value);
     }
 }
 
@@ -45,12 +42,12 @@ impl BaseBand for AllColorBand {
 
 #[derive(Clone)]
 pub struct SimpleCard {
-    color: Color,
+    color: CardColor,
     value: CardValue,
 }
 
 impl SimpleCard {
-    pub fn new(color: Color, value: u8) -> Self {
+    pub fn new(color: CardColor, value: u8) -> Self {
         Self {
             color,
             value: CardValue::Numeral(value),
@@ -63,7 +60,7 @@ impl Stacks for SimpleCard {
         return self.value;
     }
 
-    fn get_color(&self) -> Option<Color> {
+    fn get_color(&self) -> Option<CardColor> {
         return Some(self.color);
     }
 
@@ -73,7 +70,7 @@ impl Stacks for SimpleCard {
 }
 
 pub struct ChooseColorCard {
-    color: Option<Color>,
+    color: Option<CardColor>,
     value: CardValue,
 }
 
@@ -99,7 +96,7 @@ impl<'a, Band: AssignedBand<'a, C>, C> BaseBand for PluralBand<'a, Band, C> {
 }
 
 impl<'a, Band: AssignedBand<'a, C>, C> AssignedBand<'a, C> for PluralBand<'a, Band, C> {
-    fn generate_card(&mut self, mut c_id: DeckId) -> C {
+    fn generate_card(&mut self, mut c_id: CardId) -> C {
         c_id.0 /= self.1;
         self.0.generate_card(c_id)
     }

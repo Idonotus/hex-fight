@@ -1,9 +1,7 @@
 use bevy::prelude::*;
 
-mod assets;
+mod assetmanager;
 mod cardmenu;
-mod content;
-mod engine;
 mod mouse;
 mod orchestrator;
 mod resizeplugin;
@@ -11,7 +9,14 @@ mod resizeplugin;
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins.set(ImagePlugin::default_nearest()),
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(AssetPlugin {
+                    unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
+                    file_path: "../assets".to_owned(),
+
+                    ..Default::default()
+                }),
             mouse::MousePlugin,
             resizeplugin::ResizePlugin,
             orchestrator::GamePlugin,

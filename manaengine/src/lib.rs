@@ -1,17 +1,18 @@
 use rand::RngCore;
 
-mod actions;
+pub mod actions;
 pub mod cards;
 pub mod colors;
 pub mod prelude;
-mod scheduler;
+pub mod scheduler;
 
-use cards::{RLEDeck, RandomDraw};
+use cards::{BaseBand, RLEDeck, RandomDraw, Stacks};
 use colors::{ColorComparison, build_compare_tolerance, taxicab};
 use prelude::*;
 use scheduler::Scheduler;
 
-use crate::engine::cards::{BaseBand, Stacks};
+#[cfg(feature = "rendering")]
+pub mod rendering;
 
 pub(crate) trait Predicate<T> {
     fn get_predicate(&self) -> T;

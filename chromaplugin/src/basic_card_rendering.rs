@@ -1,6 +1,6 @@
 #[rustfmt::skip()]
 mod defcolors {
-    use crate::assets::palette::RGBA;
+    use super::RGBA;
     pub const WHITE: RGBA = [255, 255, 255, 255];
     pub const BLACK: RGBA = [0, 0, 0, 255];
 }
@@ -9,15 +9,11 @@ use defcolors::*;
 
 use super::basic_cards::{AllColorBand, AllColorPlugin, PluralBand, SimpleCard};
 
-use crate::{
-    assets::{
-        cache::{Asset, MaterialCache},
-        cardrender::{Assetable, AssetableGroup, Details, RequestContext},
-        palette::RGBA,
-    },
-    engine::{
-        cards::{AssignedBand, CardValue, Stacks},
-        colors::Color as CardColor,
+use manaengine::{
+    prelude::*,
+    rendering::{
+        assetinterface::{Asset, AssetRequest, ExpectedAssetRef, MaterialCache, RGBA},
+        cardrender::{Assetable, AssetableGroup},
     },
 };
 
@@ -56,13 +52,12 @@ static CARD_BASE: &str = "card-base";
 static CARD_FACE: &str = "face_";
 const APLUGIN: AllColorPlugin = AllColorPlugin;
 
-impl Into<RGBA> for CardColor {
-    fn into(self) -> RGBA {
-        return [self.r, self.g, self.b, 255];
-    }
-}
 impl AssetableGroup for AllColorPlugin {
-    fn predict_assets(&self) -> Vec<String> {
+    fn asset_expectations(&self) -> Vec<ExpectedAssetRef> {
+        Vec::new() //FIXME: I cba to validate this rn
+    }
+
+    fn request_assets(&self) -> Vec<String> {
         vec![CARD_BASE.to_owned(), "card-face-atlas".to_owned()]
     }
 
@@ -72,8 +67,11 @@ impl AssetableGroup for AllColorPlugin {
 }
 
 impl AssetableGroup for AllColorBand {
-    fn predict_assets(&self) -> Vec<String> {
-        APLUGIN.predict_assets()
+    fn asset_expectations(&self) -> Vec<ExpectedAssetRef> {
+        APLUGIN.asset_expectations()
+    }
+    fn request_assets(&self) -> Vec<String> {
+        APLUGIN.request_assets()
     }
 
     fn predict_material(&self, cache: &mut MaterialCache) -> () {
@@ -82,12 +80,12 @@ impl AssetableGroup for AllColorBand {
 }
 
 impl Assetable for SimpleCard {
-    fn get_details(&self) -> Details {
-        Details {
-            name: format!("{:?} of {}", self.get_value(), self.get_color().unwrap()),
-            description: "A normal card".to_owned(),
-        }
-    }
+    // fn get_details(&self) -> Details {
+    //     Details {
+    //         name: format!("{:?} of {}", self.get_value(), self.get_color().unwrap()),
+    //         description: "A normal card".to_owned(),
+    //     }
+    // }
 
     fn get_asset_count(&self) -> usize {
         3
@@ -147,11 +145,11 @@ impl Assetable for SimpleCard {
         commands.entity(base_entity).add_child(e);
     }
 
-    fn request_assets<'a>(&self, mut context: RequestContext<'a>) -> RequestContext<'a> {
+    fn request_assets(&self, context: &mut dyn AssetRequest) -> () {
         context.request_texture(CARD_BASE.to_owned(), 0);
 
         let Some(c) = self.get_color() else {
-            return context;
+            return;
         };
 
         let borders = if c.get_value() > 0.5 { BLACK } else { WHITE };
@@ -159,20 +157,24 @@ impl Assetable for SimpleCard {
         context.request_palette(&[borders, c.into()], 1);
 
         let CardValue::Numeral(n) = self.get_value() else {
-            return context;
+            return;
         };
 
-        context.request_atlastexture(CARD_FACE.to_owned() + &n.to_string(), 2);
+        context.request_texture(CARD_FACE.to_owned() + &n.to_string(), 2);
 
-        return context;
+        return;
     }
 }
 
 impl<'a, Band: AssignedBand<'a, C> + AssetableGroup, C: Assetable> AssetableGroup
     for PluralBand<'a, Band, C>
 {
-    fn predict_assets(&self) -> Vec<String> {
-        self.0.predict_assets()
+    fn asset_expectations(&self) -> Vec<ExpectedAssetRef> {
+        self.0.asset_expectations()
+    }
+
+    fn request_assets(&self) -> Vec<String> {
+        self.0.request_assets()
     }
 
     fn predict_material(&self, cache: &mut MaterialCache) -> () {

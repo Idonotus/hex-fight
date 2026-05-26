@@ -11,5 +11,7 @@ impl Deref for PlayerId {
 use std::ops::Deref;
 
 pub use super::cards::{
-    AssignedBand, BandSet, BaseBand, DeckCapacity, DeckId as CardId, DeckSize, Stacks,
+    AssignedBand, BandSet, BaseBand, CardValue, DeckCapacity, DeckId as CardId, DeckSize, Stacks,
 };
+
+pub use super::colors::Color as CardColor;

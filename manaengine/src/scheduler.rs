@@ -1,6 +1,6 @@
 use enum_dict::{DictKey, RequiredDict};
 
-use crate::engine::prelude::PlayerId;
+use crate::prelude::PlayerId;
 
 struct Task<'a> {
     phase: TurnPhase,

@@ -1,58 +1,59 @@
 use std::{hash::Hash, sync::Arc};
 
 use crate::{
-    assets::{
-        batch::render_cards, cache::AssetInterface, cardrender::AssetableGroup, loader, render_card,
+    assetmanager::{
+        cache::AssetCache,
+        cardinterface::{RequestContext, batch::render_cards, render_card},
+        indexer::{AssetIndex, AssetPackIndex},
+        loading::{AssetLoader, CacheLoader, PrepLoader},
+        palettes::BasePalette,
     },
     cardmenu::{
         CardGroup, WidthLayout, display_groups,
         origins::{CardUIOrigins, MenuOrigin},
     },
-    engine::{cards::does_stack, prelude::*},
 };
 
-use super::{
-    assets::{
-        cache::{Asset as GameAsset, AssetCache, MaterialCache},
-        cardrender::{Assetable, Details, RequestContext},
-        palette::BasePalette,
-    },
-    content::basic_cards::{AllColorBand, AllColorPlugin},
-    engine::{
-        Game,
-        cards::CardValue,
-        colors::{Color as CardColor, ColorComparison},
-    },
-};
 use bevy::{
     color::palettes::basic, ecs::system::SystemState, input::mouse::MouseWheel, prelude::*,
 };
+use chromaplugin::basic_cards::{AllColorBand, AllColorPlugin};
 use dyn_clone::DynClone;
+use manaengine::{
+    Game,
+    cards::does_stack,
+    colors::ColorComparison,
+    prelude::*,
+    rendering::{
+        assetinterface::{Asset as CardAsset, AssetRequest, MaterialCache},
+        cardrender::{Assetable, AssetableGroup},
+    },
+};
 
-trait Card: Stacks + Assetable + DynClone + Send + Sync {}
+trait Card: Stacks + Assetable + DynClone {}
 
 dyn_clone::clone_trait_object!(Card);
 
 type CardBox<'a> = Box<dyn Card + 'a>;
 
 impl<'a> Assetable for CardBox<'a> {
-    fn get_details(&self) -> Details {
-        return self.as_ref().get_details();
-    }
+    // fn get_details(&self) -> Details {
+    //     return self.as_ref().get_details();
+    // }
 
     fn generate_layers(
         &self,
         world: &mut World,
         card_size: Rectangle,
         base_entity: Entity,
-        assets: Vec<GameAsset>,
+        assets: Vec<CardAsset>,
     ) -> () {
         return self
             .as_ref()
             .generate_layers(world, card_size, base_entity, assets);
     }
 
-    fn request_assets<'b>(&self, context: RequestContext<'b>) -> RequestContext<'b> {
+    fn request_assets<'b>(&self, context: &mut dyn AssetRequest) {
         return self.as_ref().request_assets(context);
     }
 
@@ -105,20 +106,21 @@ fn setup_game(world: &mut World) {
     let img = images.reserve_handle();
     images.insert(&img, BasePalette::gen_image(PALETTE_SIZE));
     let p = BasePalette::new(img, PALETTE_SIZE);
+    let mut index = AssetPackIndex::new();
+    index
+        .index_asset_collection("./assets".into(), "./base_pack/record.json".into())
+        .unwrap();
 
-    let mut cache = AssetCache::new(p);
-    loader::load_pack_index(
-        loader::path_to_abs("base_pack/record.json", None),
-        &mut cache,
-    )
-    .unwrap();
-    let (server, layouts) =
-        SystemState::<(ResMut<AssetServer>, ResMut<Assets<TextureAtlasLayout>>)>::new(world)
-            .get_mut(world);
-
-    cache.load(AssetInterface { server, layouts }, b.predict_assets());
-
+    dbg!(index.clone());
+    world.insert_resource(index);
+    let cache = AssetCache::new(p);
     world.insert_resource(cache);
+    let loader = CacheLoader::new();
+    world.insert_resource(loader);
+
+    let (mut loader, interface) = CacheLoader::prep_vars_from_world(world);
+    loader.load(interface, b.request_assets());
+
     let mut game = Game::new(2, Box::new(rand::rng()), b);
     game.deal(2000);
     game.top_card = game.draw_card();
@@ -140,8 +142,18 @@ fn test_system(world: &mut World) {
     let vstacks =
         game.get_filter_for_player(cur_turn, &|head| does_stack(&base, head, &game.comparison));
 
-    let top_card = render_card(world, &base, Rectangle::from_size(CARD_SIZE.xy()));
-    let mut cards = render_cards(world, &cardinfo, Rectangle::from_size(CARD_SIZE.xy()));
+    let top_card = render_card::<CardBox, AssetCache>(
+        world,
+        RequestContext::new_from_world,
+        &base,
+        Rectangle::from_size(CARD_SIZE.xy()),
+    );
+    let mut cards = render_cards::<CardBox, AssetCache>(
+        world,
+        RequestContext::new_from_world,
+        &cardinfo,
+        Rectangle::from_size(CARD_SIZE.xy()),
+    );
 
     let (mut origins, mut meshes, mut colors) = SystemState::<(
         ResMut<CardUIOrigins>,
@@ -248,25 +260,17 @@ fn send_scroll_events(
     }
 }
 
-fn loading(
-    mut commands: Commands,
-    server: Res<AssetServer>,
-    images: ResMut<Assets<Image>>,
-    mut cache: ResMut<AssetCache>,
-) {
-    let done = cache.loading(server, images);
+fn loading(world: &mut World) {
+    let (mut loader, interface) = CacheLoader::prep_vars_from_world(world);
+    let done = loader.loading_step(interface);
     if done {
         println!("Done loading!");
-        commands.set_state(GameState::InGame);
+        world.commands().set_state(GameState::InGame);
+        world.flush();
     }
 }
 
 pub struct GamePlugin;
-
-#[derive(Component)]
-struct Hand {
-    data: Vec<Arc<dyn Card>>,
-}
 
 impl GamePlugin {
     fn insert_plugins(&self, app: &mut App) {

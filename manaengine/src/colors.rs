@@ -1,7 +1,7 @@
 use std::{cmp::PartialOrd, fmt::Display};
 
 #[derive(PartialEq, Clone, Copy, Debug, Eq, Hash)]
-pub(crate) struct Color {
+pub struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8,
@@ -53,6 +53,15 @@ impl Color {
         } else {
             60f32 * ((vals[0] - vals[1]) / delta + 4f32)
         }
+    }
+}
+
+#[cfg(feature = "rendering")]
+use crate::rendering::assetinterface::RGBA;
+#[cfg(feature = "rendering")]
+impl Into<RGBA> for Color {
+    fn into(self) -> RGBA {
+        return [self.r, self.g, self.b, 255];
     }
 }
 

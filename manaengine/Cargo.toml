@@ -1,0 +1,15 @@
+[package]
+name = "manaengine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = {workspace = true, optional = true}
+rand = { workspace = true }
+
+[dependencies.enum_dict]
+version = "0.7"
+features = ["full"]
+
+[features]
+rendering = ["dep:bevy"]

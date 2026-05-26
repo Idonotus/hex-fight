@@ -3,7 +3,7 @@ use std::iter::Sum;
 use std::ops::{Add, Deref};
 use std::{cmp::Ordering, marker::PhantomData};
 
-use crate::engine::colors::{Color, ColorComparison};
+use crate::colors::{Color, ColorComparison};
 
 // Macro?
 
