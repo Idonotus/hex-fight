@@ -122,7 +122,7 @@ fn setup_game(world: &mut World) {
     loader.load(interface, b.request_assets());
 
     let mut game = Game::new(2, Box::new(rand::rng()), b);
-    game.deal(2000);
+    game.deal(10);
     game.top_card = game.draw_card();
     world.insert_non_send_resource(game);
 }
