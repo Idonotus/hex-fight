@@ -3,6 +3,7 @@ use std::mem::swap;
 use bevy::{
     ecs::system::SystemState,
     input::{ButtonState, mouse::MouseButtonInput},
+    platform::collections::HashSet,
     prelude::*,
 };
 
@@ -41,8 +42,18 @@ struct ClickQueue {
 impl Plugin for MousePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, check_clicks)
-            .add_systems(FixedUpdate, follow_mouse);
+            .add_systems(FixedUpdate, follow_mouse)
+            .add_systems(Startup, |world: &mut World| {
+                world.insert_resource(ButtonEdge {
+                    buttons: HashSet::new(),
+                })
+            });
     }
+}
+
+#[derive(Resource)]
+struct ButtonEdge {
+    buttons: HashSet<MouseButton>,
 }
 
 fn check_clicks(world: &mut World) {
@@ -50,10 +61,11 @@ fn check_clicks(world: &mut World) {
         Query<'w, 's, &'a Window>,
         Query<'w, 's, (&'a Camera, &'a GlobalTransform)>,
         Query<'w, 's, (&'a mut ClickBox, &'a GlobalTransform, Entity)>,
+        ResMut<'w, ButtonEdge>,
         MessageReader<'w, 's, MouseButtonInput>,
     );
     let mut sys: SystemState<S> = SystemState::new(world);
-    let (windows, cams, boxes, mut msgs): S = sys.get_mut(world);
+    let (windows, cams, boxes, mut helds, mut msgs): S = sys.get_mut(world);
     let w: &Window = windows.single().unwrap();
     let (c, ctrans): (&Camera, &GlobalTransform) = cams.single().unwrap();
     let Some(mpos) = w
@@ -67,6 +79,17 @@ fn check_clicks(world: &mut World) {
     let mut clicks: Vec<MouseButtonInput> = Vec::new();
 
     for click in msgs.read().into_iter() {
+        let prev_held = helds.buttons.contains(&click.button);
+        if !(prev_held ^ click.state.is_pressed()) {
+            continue;
+        }
+
+        if prev_held {
+            helds.buttons.remove(&click.button);
+        } else {
+            helds.buttons.insert(click.button);
+        }
+
         clicks.push(click.clone());
     }
 
