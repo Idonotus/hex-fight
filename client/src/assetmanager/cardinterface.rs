@@ -14,7 +14,8 @@ use bevy::{
 
 use manaengine::rendering::{
     assetinterface::{
-        AssetReference, AssetRequest, PaletteAllocator, PaletteData, PaletteReference, RGBA,
+        Asset as CardAsset, AssetReference, AssetRequest, PaletteAllocator, PaletteData,
+        PaletteReference, RGBA,
     },
     cardrender::Assetable,
 };
@@ -27,6 +28,7 @@ use crate::assetmanager::{
 pub struct RequestContext {
     palette: PaletteReservations,
     buffer: Vec<u8>,
+    used_size: usize,
     offset: usize,
     references: Vec<Option<AssetReference>>,
 }
@@ -38,7 +40,8 @@ impl RequestContext {
             buffer: Vec::new(),
             references: Vec::new(),
             palette,
-            offset: (palette.allocated.x + palette.allocated.y * palette.size.x) as usize,
+            used_size: 0,
+            offset: (palette.allocated.x + palette.allocated.y * palette.size.x) as usize * 4,
         };
     }
 
@@ -48,7 +51,7 @@ impl RequestContext {
     }
 
     fn expand_buffer(&mut self, b: usize, e: usize) {
-        let n = self.buffer.len() + b + self.offset;
+        let n = self.buffer.len() + b;
         let ps = self.palette.size.element_product() as usize * 4;
         if n > ps {
             panic!("No space {n} out of {ps}")
@@ -78,7 +81,7 @@ impl PaletteData for RequestContext {
         if end > self.buffer.len() {
             self.expand_buffer(end - self.buffer.len(), 300);
         }
-
+        self.used_size += end - start;
         self.buffer.splice(start..end, data);
     }
 }
@@ -119,7 +122,7 @@ impl AssetRequest for RequestContext {
             .data
             .as_mut()
             .unwrap()
-            .splice(self.offset..(self.offset + self.buffer.len()), self.buffer);
+            .splice(self.offset..(self.used_size + self.offset), self.buffer);
     }
 }
 
@@ -225,7 +228,7 @@ pub fn render_card<C: Assetable, A: AssetContainer + Resource>(
     let assets = world.resource::<A>();
     let card_assets = assets.fetch_assets(ref_list);
 
-    let card_assets = card_assets.into_iter().map(|a| a.unwrap()).collect();
+    let card_assets: Vec<CardAsset> = card_assets.into_iter().map(|a| a.unwrap()).collect();
 
     card.generate_layers(world, card_size, entity, card_assets);
     return entity;

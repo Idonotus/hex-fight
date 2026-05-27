@@ -6,7 +6,7 @@ use bevy::{
 use manaengine::rendering::assetinterface::{PaletteAllocator, PaletteReference};
 
 pub struct BasePalette {
-    pub(super) img: Handle<Image>,
+    pub img: Handle<Image>,
     pub(super) allocator: PaletteReservations,
 }
 

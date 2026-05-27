@@ -9,7 +9,7 @@ use bevy::{
     sprite_render::{Material2d, Material2dPlugin},
 };
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum AssetExpectations {
     ExistsAsImage,
     Texture,
@@ -31,13 +31,14 @@ impl ExpectedAssetRef {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Asset {
     Texture(Handle<Image>),
     Palette(Handle<Image>, PaletteReference, PaletteReference),
     AtlasTexture(Handle<Image>, Handle<TextureAtlasLayout>, usize),
 }
 
+#[derive(Debug, Clone)]
 pub enum AssetReference {
     Texture(String),
     Palette(PaletteReference),

@@ -16,26 +16,6 @@ pub struct LoadingInterface<'a, I: AssetIndex + Resource, C: AssetContainer + Re
     pub container: ResMut<'a, C>,
 }
 
-impl<'a, I: AssetIndex + Resource, C: AssetContainer + Resource> LoadingInterface<'a, I, C> {
-    fn new(world: &'a mut World) -> LoadingInterface<'a, I, C> {
-        let (server, layouts, index, images, container) = SystemState::<(
-            ResMut<AssetServer>,
-            ResMut<Assets<TextureAtlasLayout>>,
-            Res<I>,
-            ResMut<Assets<Image>>,
-            ResMut<C>,
-        )>::new(world)
-        .get_mut(world);
-        return Self {
-            server,
-            layouts,
-            index,
-            images,
-            container,
-        };
-    }
-}
-
 pub trait AssetLoader<I: AssetIndex + Resource, C: AssetContainer + Resource> {
     fn loading_step<'a>(&mut self, loader: LoadingInterface<'a, I, C>) -> bool;
     fn load<'a>(&mut self, loader: LoadingInterface<'a, I, C>, assets: Vec<String>);

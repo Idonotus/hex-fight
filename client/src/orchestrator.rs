@@ -1,4 +1,4 @@
-use std::{hash::Hash, sync::Arc};
+use std::hash::Hash;
 
 use crate::{
     assetmanager::{
@@ -14,9 +14,7 @@ use crate::{
     },
 };
 
-use bevy::{
-    color::palettes::basic, ecs::system::SystemState, input::mouse::MouseWheel, prelude::*,
-};
+use bevy::{ecs::system::SystemState, input::mouse::MouseWheel, prelude::*};
 use chromaplugin::basic_cards::{AllColorBand, AllColorPlugin};
 use dyn_clone::DynClone;
 use manaengine::{
@@ -104,7 +102,9 @@ fn setup_game(world: &mut World) {
     let b = BandSet::new(vec![AllColorBand::new(10)]);
     let mut images = world.resource_mut::<Assets<Image>>();
     let img = images.reserve_handle();
-    images.insert(&img, BasePalette::gen_image(PALETTE_SIZE));
+    images
+        .insert(&img, BasePalette::gen_image(PALETTE_SIZE))
+        .unwrap();
     let p = BasePalette::new(img, PALETTE_SIZE);
     let mut index = AssetPackIndex::new();
     index
@@ -122,7 +122,7 @@ fn setup_game(world: &mut World) {
     loader.load(interface, b.request_assets());
 
     let mut game = Game::new(2, Box::new(rand::rng()), b);
-    game.deal(2000);
+    game.deal(1000);
     game.top_card = game.draw_card();
     world.insert_non_send_resource(game);
 }
@@ -155,12 +155,7 @@ fn test_system(world: &mut World) {
         Rectangle::from_size(CARD_SIZE.xy()),
     );
 
-    let (mut origins, mut meshes, mut colors) = SystemState::<(
-        ResMut<CardUIOrigins>,
-        ResMut<Assets<Mesh>>,
-        ResMut<Assets<ColorMaterial>>,
-    )>::new(world)
-    .get_mut(world);
+    let mut origins = world.get_resource_mut::<CardUIOrigins>().unwrap();
 
     for idx in 0..cardinfo.len() {
         origins.register_card(
