@@ -272,17 +272,17 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
                 if i < idx {
                     continue;
                 }
-                set_follow_index(&mut c, *e, i + 1);
+                set_follow_index(&mut c, *e, i + 1, click.position);
             }
             c.entity(entity).add_child(card);
 
-            c.entity(card).remove::<FollowMouse>().insert(
-                (Transform::from_translation(Vec3 {
+            c.entity(card)
+                .remove::<FollowMouse>()
+                .insert(Transform::from_translation(Vec3 {
                     x: (tleft_box.x + card_size.x / 2.0),
                     y: -(tleft_box.y + card_size.y / 2.0),
                     z: grid_coord.0 as f32 * card_size.z,
-                })),
-            );
+                }));
         }
         None => {
             if s.is_full() {
@@ -294,16 +294,18 @@ fn menu_click(world: &mut World, entity: Entity, click: ClickEvent) {
             if let Ok(parent_group) = parents.get(card) {
                 c.entity(parent_group.0).detach_child(card);
             }
-            set_follow_index(&mut c, card, s.get_held_cards().len());
+            set_follow_index(&mut c, card, s.get_held_cards().len(), click.position);
         }
     }
     j.apply(world);
 }
 
-fn set_follow_index(commands: &mut Commands, card: Entity, idx: usize) {
-    commands
-        .entity(card)
-        .insert((FollowMouse::new(vec2(-40.0, 0.0) * idx as f32, idx),));
+fn set_follow_index(commands: &mut Commands, card: Entity, idx: usize, mouse_pos: Vec2) {
+    let offset = vec2(-40.0, 0.0) * idx as f32;
+    commands.entity(card).insert((
+        FollowMouse::new(offset, idx),
+        Transform::from_translation((mouse_pos + offset).xyx().with_z(idx as f32 * 2.0 + 100.0)),
+    ));
 }
 
 pub fn create_menu_resources(mut commands: Commands) {

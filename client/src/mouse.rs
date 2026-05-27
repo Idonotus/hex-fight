@@ -41,39 +41,55 @@ struct ClickQueue {
 
 impl Plugin for MousePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, check_clicks)
-            .add_systems(FixedUpdate, follow_mouse)
-            .add_systems(Startup, |world: &mut World| {
-                world.insert_resource(ButtonEdge {
-                    buttons: HashSet::new(),
-                })
-            });
+        app.add_systems(
+            Update,
+            (
+                check_clicks.after(update_position),
+                follow_mouse.after(update_position),
+                update_position,
+            ),
+        )
+        .add_systems(Startup, |world: &mut World| {
+            world.insert_resource(ButtonEdge::default());
+            world.insert_resource(MouseWorldPosition::default());
+        });
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 struct ButtonEdge {
     buttons: HashSet<MouseButton>,
 }
 
-fn check_clicks(world: &mut World) {
-    type S<'w, 's, 'a> = (
-        Query<'w, 's, &'a Window>,
-        Query<'w, 's, (&'a Camera, &'a GlobalTransform)>,
-        Query<'w, 's, (&'a mut ClickBox, &'a GlobalTransform, Entity)>,
-        ResMut<'w, ButtonEdge>,
-        MessageReader<'w, 's, MouseButtonInput>,
-    );
-    let mut sys: SystemState<S> = SystemState::new(world);
-    let (windows, cams, boxes, mut helds, mut msgs): S = sys.get_mut(world);
-    let w: &Window = windows.single().unwrap();
-    let (c, ctrans): (&Camera, &GlobalTransform) = cams.single().unwrap();
+#[derive(Resource, Default)]
+pub struct MouseWorldPosition(pub Vec2);
+
+fn update_position(
+    window: Query<&Window>,
+    camera: Query<(&Camera, &GlobalTransform)>,
+    mut mouse_pos: ResMut<MouseWorldPosition>,
+) {
+    let w: &Window = window.single().unwrap();
+    let (c, ctrans): (&Camera, &GlobalTransform) = camera.single().unwrap();
     let Some(mpos) = w
         .cursor_position()
         .and_then(|x| c.viewport_to_world_2d(ctrans, x).ok())
     else {
         return;
     };
+    mouse_pos.0 = mpos
+}
+
+fn check_clicks(world: &mut World) {
+    type S<'w, 's, 'a> = (
+        Res<'w, MouseWorldPosition>,
+        Query<'w, 's, (&'a mut ClickBox, &'a GlobalTransform, Entity)>,
+        ResMut<'w, ButtonEdge>,
+        MessageReader<'w, 's, MouseButtonInput>,
+    );
+    let mut sys: SystemState<S> = SystemState::new(world);
+    let (mouse_pos, boxes, mut helds, mut msgs): S = sys.get_mut(world);
+    let mpos = mouse_pos.0;
 
     let mut click_queue: Vec<ClickQueue> = Vec::new();
     let mut clicks: Vec<MouseButtonInput> = Vec::new();
@@ -180,20 +196,11 @@ impl FollowMouse {
 }
 
 fn follow_mouse(
-    wq: Query<&Window>,
-    cq: Query<(&Camera, &GlobalTransform)>,
-    followers: Query<(&mut Transform, &mut FollowMouse, &GlobalTransform)>,
+    mouse_pos: Res<MouseWorldPosition>,
+    followers: Query<(&mut Transform, &mut FollowMouse)>,
 ) {
-    let w: &Window = wq.single().unwrap();
-    let (c, ctrans): (&Camera, &GlobalTransform) = cq.single().unwrap();
-    let Some(mpos) = w
-        .cursor_position()
-        .and_then(|x| c.viewport_to_world_2d(ctrans, x).ok())
-    else {
-        return;
-    };
-    for (mut t, mut m, g) in followers {
-        let follow_pos = mpos + m.offset;
+    for (mut t, mut m) in followers {
+        let follow_pos = mouse_pos.0 + m.offset;
         match m.pos_queue.push(follow_pos) {
             Some(p) => {
                 t.translation.x = p.x;
