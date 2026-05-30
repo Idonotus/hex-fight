@@ -184,9 +184,9 @@ impl<'a> Response<'a> {
         return action;
     }
 
-    fn handle_action<'b>(&mut self, action: Box<dyn Action<'a> + 'b>) {
-        let predicates = action.get_predicate();
-        let params = action.get_required_references();
+    fn handle_action<'b>(&mut self, action: Action<'a>) {
+        let predicates = action.predicate;
+        let params = action.references;
         if !predicate_legal(&predicates, &self.context.get_predicates(&params)) {
             return;
         }
@@ -197,7 +197,7 @@ impl<'a> Response<'a> {
                 context: self.context.borrow_item(*i).unwrap(),
             });
         }
-        let mut proc = action.run_action(contexts);
+        let mut proc = (action.action)(contexts);
 
         for (idx, reference) in params.into_iter().enumerate().rev() {
             let item = proc.returned_context.pop().unwrap();
@@ -223,7 +223,7 @@ pub struct ActionResult<'a> {
 }
 
 enum Interaction<'a> {
-    Action(Box<dyn Action<'a> + 'a>),
+    Action(Action<'a>),
     UserPrompt {
         player: usize,
         prompt: Prompt,
@@ -236,10 +236,14 @@ enum Interaction<'a> {
     },
 }
 
-pub trait Action<'a> {
-    fn get_predicate(&self) -> Vec<ContextPredicate>;
-    fn get_required_references(&self) -> Vec<usize>;
-    fn run_action(self: Box<Self>, parameters: Vec<ItemReference>) -> ActionResult<'a>;
+pub struct Action<'a> {
+    predicate: Vec<ContextPredicate>,
+    references: Vec<usize>,
+    action: Box<dyn FnOnce(Vec<ItemReference>) -> ActionResult<'a> + 'a>,
+}
+
+pub struct Listener<'a> {
+    action: Box<dyn Fn() -> ActionResult<'a>>,
 }
 
 pub enum Display {

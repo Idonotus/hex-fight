@@ -3,6 +3,7 @@ use rand::RngCore;
 pub mod actions;
 pub mod cards;
 pub mod colors;
+pub mod plugins;
 pub mod prelude;
 pub mod scheduler;
 
@@ -13,6 +14,8 @@ use scheduler::Scheduler;
 
 #[cfg(feature = "rendering")]
 pub mod rendering;
+#[cfg(feature = "rendering")]
+pub mod renderplugins;
 
 pub(crate) trait Predicate<T> {
     fn get_predicate(&self) -> T;
