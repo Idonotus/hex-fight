@@ -1,7 +1,10 @@
+use std::mem::swap;
+
 use rand::RngCore;
 
 pub mod actions;
 pub mod cards;
+pub mod cardstorage;
 pub mod colors;
 pub mod prelude;
 pub mod scheduler;
@@ -19,7 +22,8 @@ pub(crate) trait Predicate<T> {
 }
 
 pub struct Player<Card> {
-    pub hand: Vec<Card>,
+    pub hand: Hand,
+    pub inventory: Vec<Card>,
 }
 
 pub struct Game<'a, Band, Card>
@@ -51,7 +55,9 @@ where
         let mut players = Vec::new();
 
         for _ in 0..player_count {
-            players.push(Player { hand: Vec::new() });
+            players.push(Player {
+                hand: Hand::new(cap),
+            });
         }
 
         Self {
