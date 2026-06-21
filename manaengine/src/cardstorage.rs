@@ -1,13 +1,14 @@
 use std::{mem::swap, ops::Range};
 
-struct LiveCardId(usize);
+pub struct LiveCardId(usize);
+pub struct LLHRef(pub usize);
 
 enum LiveCardSlot<T> {
     Empty(Option<usize>),
     Filled(T),
 }
 
-struct LiveCardStorage<T> {
+pub struct LiveCardStorage<T> {
     virtual_map: Vec<(u64, usize)>,
     live_storage: Vec<LiveCardSlot<T>>,
     head: Option<usize>,
@@ -131,14 +132,14 @@ impl<T> LItem<T> {
     }
 }
 
-struct LL<T> {
+pub struct LL<T> {
     data: Vec<LItem<T>>,
     heads: Vec<LHead>,
 }
 
 impl<T> LL<T> {
     const INTERNAL_NULL_HEAD: usize = 0;
-    fn new(headsdata: Vec<Option<usize>>) -> Self {
+    pub fn new(headsdata: Vec<Option<usize>>) -> Self {
         let mut hself = LL {
             data: Vec::new(),
             heads: headsdata.into_iter().map(LHead::new).collect(),

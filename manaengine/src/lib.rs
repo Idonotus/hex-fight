@@ -1,5 +1,3 @@
-use std::mem::swap;
-
 use rand::RngCore;
 
 pub mod actions;
@@ -14,6 +12,8 @@ use colors::{ColorComparison, build_compare_tolerance, taxicab};
 use prelude::*;
 use scheduler::Scheduler;
 
+use crate::cardstorage::{LL, LLHRef, LiveCardId, LiveCardStorage};
+
 #[cfg(feature = "rendering")]
 pub mod rendering;
 
@@ -21,9 +21,9 @@ pub(crate) trait Predicate<T> {
     fn get_predicate(&self) -> T;
 }
 
-pub struct Player<Card> {
-    pub hand: Hand,
-    pub inventory: Vec<Card>,
+pub struct Player {
+    pub hand: LLHRef,
+    pub inventory: Vec<LiveCardId>,
 }
 
 pub struct Game<'a, Band, Card>
@@ -34,8 +34,10 @@ where
     deck: Box<dyn RandomDraw>,
     rng: Box<dyn RngCore>,
     card_set: BandSet<'a, Band, Card>,
+    player_hands: LL<Option<LiveCardId>>,
+    card_storage: LiveCardStorage<Card>,
 
-    players: Vec<Player<Card>>,
+    players: Vec<Player>,
     pub order: Scheduler<'a>,
 
     pub top_card: Option<Card>,
